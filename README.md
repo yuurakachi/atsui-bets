@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Atsui bets
 
-## Getting Started
+A family prediction-pool app for **Liga MX**, **NFL** and **Formula 1**.
 
-First, run the development server:
+Every week our family plays three separate pools: NFL picks lived in Yahoo Fantasy, while
+Liga MX and F1 picks were sent over WhatsApp to one person who kept the standings and the
+money by hand. Atsui bets replaces all of that with a single mobile-first web app:
+everyone submits their picks in one place, picks lock automatically, results are imported
+from public sports APIs, and standings, prizes and the monthly money settlement are
+computed for us.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+> **Status:** in development. The rules engine is implemented and tested; the database,
+> auth and UI are next. See the [roadmap](#roadmap).
+
+## Features
+
+- **Three sports, one app** — Liga MX (home / draw / away), NFL (winner) and F1
+  (P1–P10, Sprints included).
+- **Per-pool membership** — each sport has its own participants; people can play one,
+  two or all three.
+- **Automatic deadlines** — per-sport lock rules in Mexico City time, from whole-matchday
+  locks to per-game locks five minutes before kickoff.
+- **Prize engine** — each round's pot is split into a season jackpot and three prizes
+  (1st, *lucky seven* and *bobby*, the second-to-last), with fair tie splitting and
+  cent-exact rounding.
+- **Monthly settlement** — one statement per person per month: what they owe, what they
+  won, and the net amount to pay or collect at the family meeting.
+- **Admins and sub-admins** — sub-admins manage their own sport, can enter picks on
+  someone's behalf, and every admin action is recorded in an audit log.
+
+The full rules are in [docs/RULES.md](docs/RULES.md).
+
+## Tech stack
+
+| | |
+|---|---|
+| App | Next.js (App Router), React, TypeScript, installable PWA |
+| Styling | Tailwind CSS |
+| Data & auth | Supabase (Postgres, Auth, Row Level Security) |
+| Jobs | Supabase `pg_cron` + Edge Functions |
+| Hosting | Vercel |
+| Tests | Vitest |
+| Data sources | ESPN (NFL), API-Football (Liga MX), Jolpica (F1) |
+
+Design notes, data model and permissions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Project structure
+
+```
+src/
+  app/        Next.js routes (UI in Spanish)
+  domain/     Pure, framework-free rules: scoring, standings, prizes, deadlines, settlement
+docs/         Game rules and architecture
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The `domain` layer has no dependencies on Next.js or the database, so every rule that
+touches points or money is covered by unit tests.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Getting started
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Requires Node.js 24+.
 
-## Learn More
+```bash
+npm install
+npm run dev     # http://localhost:3000
+npm test        # rules engine tests
+npm run lint
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Roadmap
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [x] Game rules and architecture
+- [x] Rules engine: scoring, tie-aware prizes, deadlines, monthly settlement
+- [ ] Database schema, auth and roles (Supabase)
+- [ ] Liga MX end to end, including import of the current season
+- [ ] Formula 1 with Sprint weekends
+- [ ] Payments, monthly settlement screen and season jackpots
+- [ ] NFL (replacing Yahoo Fantasy)
+- [ ] Push notifications and "who's missing" WhatsApp reminders
