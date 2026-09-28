@@ -26,40 +26,55 @@ convenience, never the only path.
 
 ## Data model
 
+The schema lives in [`supabase/migrations`](../supabase/migrations).
+
 ```
-profiles            id, display_name, nickname, role (admin | participant)
-pools               id, sport (liga_mx | nfl | f1), season, name, status
-pool_admins         pool_id, profile_id                      -- sub-admins per pool
-enrollments         pool_id, profile_id                      -- season-long membership
-rounds              id, pool_id, name, kind (matchday | week | gp | sprint),
-                    lock_at (null for per-event locking), settlement_period_id, status
-events              id, round_id, external_id, home, away, starts_at, lock_at, result
-f1_drivers          id, code, name, team, season
-picks               profile_id, event_id, selection, entered_by, updated_at
-round_results       round_id, profile_id, points, position, prize_cents
-jackpots            pool_id, amount_cents
+players             id, display_name, nickname, email, user_id → auth.users, is_admin
+pools               id, sport (liga_mx | nfl | f1), season, status, entry_fee_cents,
+                    jackpot_opening_cents
+pool_admins         pool_id, player_id                       -- sub-admins per pool
+enrollments         pool_id, player_id                       -- season-long membership
 settlement_periods  id, cutoff_at, settled_at, settled_by
-payments            settlement_period_id, profile_id, amount_cents, recorded_by
+rounds              id, pool_id, name, kind (matchday | week | gp | sprint), ordinal,
+                    status, settlement_period_id, pot_cents, jackpot_cents
+events              id, round_id, external_id, name, home_team, away_team,
+                    starts_at, lock_at, result (home | draw | away | void)
+f1_drivers          id, season, code, name, team
+f1_classification   event_id, position, driver_id
+match_picks         event_id, player_id, selection, entered_by, updated_at
+f1_picks            event_id, player_id, position (1–10), driver_id, entered_by, updated_at
+round_results       round_id, player_id, points, position, prize_cents
 audit_log           id, actor_id, action, entity, entity_id, payload, created_at
 ```
 
 Notes:
 
-- An F1 round has one event (the race) and ten picks per participant, one per position
-  (`selection` = driver, keyed by position).
-- `picks.entered_by` differs from `profile_id` when an admin enters a pick on someone's
-  behalf.
-- Round results are derived data: they can always be recomputed from picks and event
-  results.
+- **Players exist before they log in.** Admins create players with an email; when that
+  person signs in for the first time, their account is linked automatically. This is
+  what lets admins import past standings and enter picks for people who never use the
+  app. `user_id` always follows `email` and can't be set by hand.
+- **Every event has its own `lock_at`**, computed by `src/domain/deadlines.ts`. For
+  Liga MX all events of a matchday share it; for NFL each game has its own. This keeps
+  the pick permissions identical for every sport.
+- `entered_by` differs from `player_id` when an admin enters a pick on someone's
+  behalf; those picks are audited.
+- `round_results` and the round's pot/jackpot are derived from picks and results, but
+  stored so history is fast to read and past seasons can be imported without picks.
+- Imported rounds from before the app existed have results but no events or picks.
 
 ## Permissions (Row Level Security)
 
-- Participants read their own picks at any time and others' picks only after the
-  pick's lock time.
-- Participants write only their own picks and only before the lock time.
-- Sub-admins write enrollments, results, payments and on-behalf picks only for the
-  pools they are assigned to.
-- The admin can do everything.
+Enforced in Postgres, so they hold no matter which client talks to the database.
+
+- Anonymous visitors and signed-in users who are not a registered player see nothing.
+- Players read their own picks at any time and others' picks only after the lock.
+- Players write only their own picks, only in pools they're enrolled in, and only
+  before the lock.
+- Sub-admins write enrollments, rounds, events, results and on-behalf picks only for
+  the pools they manage, and can add players.
+- Only the admin manages pools, sub-admins, settlement periods and admin rights.
+- The audit log is written by triggers only; admins and sub-admins can read it.
+- Server jobs (results import, scoring) use the secret key and bypass RLS.
 
 ## Code layout
 
