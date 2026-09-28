@@ -1,0 +1,151 @@
+/**
+ * Imports a season that started before the app: one row per player with their points
+ * per round (J1, J2, …) and an optional TOTAL column used as a checksum.
+ *
+ * Positions, prizes and the jackpot are computed with the same rules engine the app
+ * uses, and the result is written as an idempotent SQL script (re-running it replaces
+ * the imported rounds). Players are matched by nickname and created if missing, without
+ * an email; linking accounts happens later when an admin adds their email.
+ *
+ *   npx tsx scripts/import-standings.ts --csv data/private/standings.csv \
+ *     --sport liga_mx --season "Apertura 2026" --name "Liga MX Apertura 2026" \
+ *     --kind matchday --out data/private/import.sql
+ *   npx supabase db query --linked -f data/private/import.sql
+ */
+import { readFileSync, writeFileSync } from "node:fs";
+import { parseArgs } from "node:util";
+import { rankEntries, settleRound, type StandingEntry } from "../src/domain";
+
+const { values: args } = parseArgs({
+  options: {
+    csv: { type: "string" },
+    sport: { type: "string" },
+    season: { type: "string" },
+    name: { type: "string" },
+    kind: { type: "string", default: "matchday" },
+    out: { type: "string" },
+  },
+});
+
+for (const required of ["csv", "sport", "season", "name", "out"] as const) {
+  if (!args[required]) throw new Error(`Missing --${required}`);
+}
+
+const [header, ...rows] = readFileSync(args.csv!, "utf8")
+  .trim()
+  .split(/\r?\n/)
+  .map((line) => line.split(",").map((cell) => cell.trim()));
+
+const roundColumns = header
+  .map((title, index) => ({ title, index }))
+  .filter(({ title }) => /^J\d+$/i.test(title));
+const totalIndex = header.findIndex((h) => h.toUpperCase() === "TOTAL");
+
+const players = rows.map((row) => row[0]);
+if (new Set(players.map((p) => p.toLowerCase())).size !== players.length) {
+  throw new Error("Duplicate player names in the CSV.");
+}
+
+// Checksum: each row's rounds must add up to its TOTAL.
+if (totalIndex !== -1) {
+  for (const row of rows) {
+    const sum = roundColumns.reduce((acc, { index }) => acc + Number(row[index]), 0);
+    if (sum !== Number(row[totalIndex])) {
+      throw new Error(`${row[0]}: rounds add up to ${sum}, but TOTAL says ${row[totalIndex]}.`);
+    }
+  }
+}
+
+const sql = (value: string) => `'${value.replaceAll("'", "''")}'`;
+const pesos = (cents: number) =>
+  (cents / 100).toLocaleString("es-MX", { style: "currency", currency: "MXN" });
+
+const statements: string[] = [];
+const report: string[] = [];
+const wonByPlayer = new Map<string, number>(players.map((p) => [p, 0]));
+let jackpotTotal = 0;
+
+for (const [i, { title, index }] of roundColumns.entries()) {
+  const entries: StandingEntry[] = rows.map((row) => ({ profileId: row[0], points: Number(row[index]) }));
+  const round = settleRound(entries);
+  const positions = new Map<string, number>();
+  for (const group of rankEntries(entries)) {
+    for (const id of group.profileIds) positions.set(id, group.from);
+  }
+
+  jackpotTotal += round.jackpotCents;
+  for (const [player, cents] of round.wonCents) wonByPlayer.set(player, wonByPlayer.get(player)! + cents);
+
+  const values = entries
+    .map((e) => `(${sql(e.profileId)}, ${e.points}, ${positions.get(e.profileId)}, ${round.wonCents.get(e.profileId)})`)
+    .join(",\n      ");
+
+  statements.push(`
+  insert into public.rounds (pool_id, name, kind, ordinal, status, pot_cents, jackpot_cents)
+  values (v_pool, ${sql(title.toUpperCase())}, ${sql(args.kind!)}, ${i + 1}, 'completed', ${round.potCents}, ${round.jackpotCents})
+  on conflict (pool_id, kind, ordinal) do update
+    set name = excluded.name, status = excluded.status,
+        pot_cents = excluded.pot_cents, jackpot_cents = excluded.jackpot_cents
+  returning id into v_round;
+
+  delete from public.round_results where round_id = v_round;
+  insert into public.round_results (round_id, player_id, points, position, prize_cents)
+  select v_round, ip.player_id, x.points, x.position, x.prize
+  from (values
+      ${values}
+  ) as x (name, points, position, prize)
+  join import_players ip on ip.name = x.name;`);
+
+  const labels = { winner: "1°", lucky_seven: "7°", bobby: "Penúltimo" } as const;
+  const awards = round.awards
+    .map((a) => `${labels[a.kind]}: ${a.profileIds.join(", ")} (${pesos(a.perPersonCents)} c/u)`)
+    .join(" | ");
+  report.push(`${title.toUpperCase()}  bolsa ${pesos(round.potCents)}, acumulado ${pesos(round.jackpotCents)}\n    ${awards}`);
+}
+
+const playerStatements = players
+  .map(
+    (name) => `
+  select id into v_player from public.players
+  where lower(coalesce(nickname, display_name)) = lower(${sql(name)}) limit 1;
+  if v_player is null then
+    insert into public.players (display_name, nickname) values (${sql(name)}, ${sql(name)})
+    returning id into v_player;
+  end if;
+  insert into import_players values (${sql(name)}, v_player);
+  insert into public.enrollments (pool_id, player_id) values (v_pool, v_player)
+  on conflict do nothing;`,
+  )
+  .join("\n");
+
+writeFileSync(
+  args.out!,
+  `-- Generated by scripts/import-standings.ts from ${args.csv}
+do $$
+declare
+  v_pool uuid;
+  v_round uuid;
+  v_player uuid;
+begin
+  insert into public.pools (sport, season, name, status)
+  values (${sql(args.sport!)}, ${sql(args.season!)}, ${sql(args.name!)}, 'active')
+  on conflict (sport, season) do update set name = excluded.name
+  returning id into v_pool;
+
+  create temp table import_players (name text primary key, player_id uuid not null);
+${playerStatements}
+${statements.join("\n")}
+
+  drop table import_players;
+end;
+$$;
+`,
+);
+
+console.log(report.join("\n"));
+console.log("\nGanado por jugador:");
+for (const [player, cents] of [...wonByPlayer].sort((a, b) => b[1] - a[1])) {
+  console.log(`  ${player.padEnd(10)} ${pesos(cents)}`);
+}
+console.log(`\nAcumulado de temporada: ${pesos(jackpotTotal)}`);
+console.log(`SQL escrito en ${args.out}`);
