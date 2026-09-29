@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { signOut } from "@/app/auth/actions";
 import { requirePlayer } from "@/lib/dal";
 import { createClient } from "@/lib/supabase/server";
@@ -49,9 +50,14 @@ export default async function HomePage() {
         ) : (
           <ul className="mt-3 space-y-2">
             {pools.map((pool) => (
-              <li key={pool.id} className="rounded-xl border border-border bg-surface px-4 py-3">
-                <p className="text-xs font-medium text-accent">{SPORT_LABEL[pool.sport]}</p>
-                <p className="font-medium">{pool.name}</p>
+              <li key={pool.id}>
+                <Link
+                  href={`/quinielas/${pool.id}`}
+                  className="block rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent"
+                >
+                  <p className="text-xs font-medium text-accent">{SPORT_LABEL[pool.sport]}</p>
+                  <p className="font-medium">{pool.name}</p>
+                </Link>
               </li>
             ))}
           </ul>
