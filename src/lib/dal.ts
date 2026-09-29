@@ -18,6 +18,19 @@ export const requireAccount = cache(async () => {
   return { userId: data.claims.sub, email: data.claims.email as string | undefined };
 });
 
+/** Whether the player runs this pool (admin, or its sub-admin). The database enforces the same rule. */
+export const canManagePool = cache(async (poolId: string): Promise<boolean> => {
+  const player = await requirePlayer();
+  if (player.isAdmin) return true;
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("pool_admins")
+    .select("*", { count: "exact", head: true })
+    .eq("pool_id", poolId)
+    .eq("player_id", player.id);
+  return (count ?? 0) > 0;
+});
+
 /**
  * The registered player behind the session. Accounts that aren't linked to a player
  * (their email was never registered by an admin) go to /sin-acceso.

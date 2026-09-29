@@ -123,7 +123,8 @@ begin
   values (
     v_pool, ${sql(data.round.name)}, ${sql(data.round.kind)}, ${data.round.ordinal}, 'completed',
     ${round.potCents}, ${round.jackpotCents},
-    (select id from public.settlement_periods where cutoff_at > ${sql(finishedAt.toISOString())}::timestamptz
+    (select id from public.settlement_periods
+     where pool_id = v_pool and cutoff_at > ${sql(finishedAt.toISOString())}::timestamptz
      order by cutoff_at limit 1)
   )
   on conflict (pool_id, kind, ordinal) do update

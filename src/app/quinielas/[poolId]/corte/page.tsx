@@ -1,20 +1,26 @@
 import Link from "next/link";
 import { TIME_ZONE } from "@/domain";
-import { requirePlayer } from "@/lib/dal";
+import { canManagePool, requirePlayer } from "@/lib/dal";
 import { formatMoney } from "@/lib/format";
+import { getPoolOverview } from "@/lib/pools";
 import { getOpenPeriod } from "@/lib/settlement";
 import { SettleButton } from "./settle-button";
 
 const dateFormat = new Intl.DateTimeFormat("es-MX", { timeZone: TIME_ZONE, day: "numeric", month: "long" });
 
-export default async function MoneyPage() {
+export default async function SettlementPage({ params }: PageProps<"/quinielas/[poolId]/corte">) {
+  const { poolId } = await params;
   const player = await requirePlayer();
-  const period = await getOpenPeriod();
+  const [pool, period, canSettle] = await Promise.all([
+    getPoolOverview(poolId),
+    getOpenPeriod(poolId),
+    canManagePool(poolId),
+  ]);
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
-      <Link href="/" className="text-sm text-muted hover:text-foreground">
-        ← Inicio
+      <Link href={`/quinielas/${pool.id}`} className="text-sm text-muted hover:text-foreground">
+        ← {pool.name}
       </Link>
       <h1 className="mt-2 text-2xl font-bold">Corte del mes</h1>
 
@@ -77,9 +83,7 @@ export default async function MoneyPage() {
             <ul className="mt-3 space-y-2">
               {period.rounds.map((round) => (
                 <li key={round.id} className="rounded-xl border border-border bg-surface px-4 py-3 text-sm">
-                  <p className="font-semibold">
-                    {round.poolName} · {round.name}
-                  </p>
+                  <p className="font-semibold">{round.name}</p>
                   <p className="text-muted">
                     {round.participants} jugadores · bolsa {formatMoney(round.potCents)} · premios{" "}
                     {formatMoney(round.prizesCents)} · acumulado {formatMoney(round.jackpotCents)}
@@ -89,9 +93,9 @@ export default async function MoneyPage() {
             </ul>
           </section>
 
-          {player.isAdmin && (
+          {canSettle && (
             <div className="mt-8">
-              <SettleButton periodId={period.id} />
+              <SettleButton poolId={pool.id} periodId={period.id} />
             </div>
           )}
         </>

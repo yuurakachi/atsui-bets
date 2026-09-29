@@ -484,22 +484,32 @@ export type Database = {
         Row: {
           cutoff_at: string
           id: string
+          pool_id: string
           settled_at: string | null
           settled_by: string | null
         }
         Insert: {
           cutoff_at: string
           id?: string
+          pool_id: string
           settled_at?: string | null
           settled_by?: string | null
         }
         Update: {
           cutoff_at?: string
           id?: string
+          pool_id?: string
           settled_at?: string | null
           settled_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "settlement_periods_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "settlement_periods_settled_by_fkey"
             columns: ["settled_by"]

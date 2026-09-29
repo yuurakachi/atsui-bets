@@ -29,6 +29,17 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
         <p className="mt-1 text-sm opacity-80">Se reparte al final: 1° 50 %, lucky 7 35 %, bobby 15 %.</p>
       </section>
 
+      <Link
+        href={`/quinielas/${pool.id}/corte`}
+        className="mt-3 flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent"
+      >
+        <span>
+          <span className="block font-medium">Corte del mes</span>
+          <span className="block text-sm text-muted">Quién paga y quién cobra en la próxima reunión</span>
+        </span>
+        <span aria-hidden="true" className="text-muted">→</span>
+      </Link>
+
       <section className="mt-8">
         <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Tabla general</h2>
         <div className="mt-3 overflow-hidden rounded-xl border border-border bg-surface">

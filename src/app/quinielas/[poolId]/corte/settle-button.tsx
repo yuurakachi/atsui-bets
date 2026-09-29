@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { markPeriodSettled } from "./actions";
 
-export function SettleButton({ periodId }: { periodId: string }) {
+export function SettleButton({ poolId, periodId }: { poolId: string; periodId: string }) {
   const [pending, startTransition] = useTransition();
 
   return (
@@ -12,7 +12,7 @@ export function SettleButton({ periodId }: { periodId: string }) {
       disabled={pending}
       onClick={() => {
         if (!confirm("¿Ya se cobró y se pagó todo? Esto cierra el corte.")) return;
-        startTransition(() => markPeriodSettled(periodId));
+        startTransition(() => markPeriodSettled(poolId, periodId));
       }}
       className="w-full rounded-xl bg-accent px-4 py-3 font-semibold text-accent-foreground transition disabled:opacity-60"
     >

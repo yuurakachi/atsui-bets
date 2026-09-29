@@ -39,7 +39,7 @@ pools               id, sport (liga_mx | nfl | f1), season, status, entry_fee_ce
                     jackpot_opening_cents
 pool_admins         pool_id, player_id                       -- sub-admins per pool
 enrollments         pool_id, player_id                       -- season-long membership
-settlement_periods  id, cutoff_at, settled_at, settled_by
+settlement_periods  id, pool_id, cutoff_at, settled_at, settled_by   -- one set per pool
 rounds              id, pool_id, name, kind (matchday | week | gp | sprint), ordinal,
                     status, settlement_period_id, pot_cents, jackpot_cents
 events              id, round_id, external_id, name, home_team, away_team,
@@ -77,7 +77,8 @@ Enforced in Postgres, so they hold no matter which client talks to the database.
   before the lock.
 - Sub-admins write enrollments, rounds, events, results and on-behalf picks only for
   the pools they manage, and can add players.
-- Only the admin manages pools, sub-admins, settlement periods and admin rights.
+- Sub-admins also create and close their pool's settlement periods.
+- Only the admin manages pools, sub-admins and admin rights.
 - The audit log is written by triggers only; admins and sub-admins can read it.
 - Server jobs (results import, scoring) use the secret key and bypass RLS.
 
@@ -99,7 +100,7 @@ docs/             Rules and architecture
 2. **Make picks** — one card per match; F1 is an ordered P1–P10 picker.
 3. **Round** — everyone's picks (after lock), live results, standings and prize leaders.
 4. **Season** — season standings and current jackpot.
-5. **Money** — monthly settlement: owes / won / net per person.
+5. **Settlement** (per pool) — monthly settlement: owes / won / net per person.
 6. **Admin** — enrollments, payments, on-behalf picks, results, data import, audit log.
 
 ## Delivery plan

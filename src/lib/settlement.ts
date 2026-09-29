@@ -7,7 +7,6 @@ import { createClient } from "./supabase/server";
 export interface PeriodRound {
   id: string;
   name: string;
-  poolName: string;
   participants: number;
   potCents: Cents;
   prizesCents: Cents;
@@ -24,13 +23,14 @@ export interface PeriodStatement {
   keptCents: Cents;
 }
 
-/** The oldest settlement period that hasn't been paid yet, with everyone's balance. */
-export const getOpenPeriod = cache(async (): Promise<PeriodStatement | null> => {
+/** The pool's oldest settlement period that hasn't been paid yet, with everyone's balance. */
+export const getOpenPeriod = cache(async (poolId: string): Promise<PeriodStatement | null> => {
   const supabase = await createClient();
 
   const { data: period } = await supabase
     .from("settlement_periods")
     .select("id, cutoff_at")
+    .eq("pool_id", poolId)
     .is("settled_at", null)
     .order("cutoff_at")
     .limit(1)
@@ -39,7 +39,7 @@ export const getOpenPeriod = cache(async (): Promise<PeriodStatement | null> => 
 
   const { data: rounds } = await supabase
     .from("rounds")
-    .select("id, name, ordinal, pot_cents, jackpot_cents, pool:pools(name, entry_fee_cents)")
+    .select("id, name, ordinal, pot_cents, jackpot_cents, pool:pools(entry_fee_cents)")
     .eq("settlement_period_id", period.id)
     .eq("status", "completed")
     .order("ordinal");
@@ -77,7 +77,6 @@ export const getOpenPeriod = cache(async (): Promise<PeriodStatement | null> => 
       return {
         id: round.id,
         name: round.name,
-        poolName: round.pool?.name ?? "",
         participants: participantIds.length,
         potCents: round.pot_cents ?? 0,
         prizesCents,

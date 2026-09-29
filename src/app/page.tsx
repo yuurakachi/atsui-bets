@@ -62,18 +62,6 @@ export default async function HomePage() {
             ))}
           </ul>
         )}
-      </section>
-
-      <section className="mt-8">
-        <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Dinero</h2>
-        <Link
-          href="/dinero"
-          className="mt-3 block rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent"
-        >
-          <p className="font-medium">Corte del mes</p>
-          <p className="text-sm text-muted">Quién paga y quién cobra en la próxima reunión</p>
-        </Link>
-      </section>
-    </main>
+      </section>    </main>
   );
 }

@@ -113,7 +113,11 @@ Examples with 15 participants:
 Money does not change hands per round. The family meets once a month, on the weekend
 of the first week of the month, and settles everything since the previous meeting.
 
-- Each settlement period has a **cutoff**: Saturday 00:00 of the meeting weekend
+**Each pool is settled on its own**, by that pool's sub-admin: every enrolled
+participant pays $100 for each round of the period, the weekly prizes of those rounds
+are paid out, and the rest is kept for the pool's jackpot.
+
+- Each pool has its own settlement periods. Each period has a **cutoff**: Saturday 00:00 of the meeting weekend
   (default: the first Saturday of the month; admins can change it).
 - A round belongs to a period only if it has **completely finished before the cutoff**
   (before Saturday). Otherwise it moves to the next period. For example, a Liga MX
@@ -121,18 +125,19 @@ of the first week of the month, and settles everything since the previous meetin
 - A round's finish time is the estimated end of its last event: kickoff + 2 h for
   Liga MX, kickoff + 3.5 h for NFL, start + 2 h for F1. Admins can move a round to
   another period by hand if needed.
-- For each person the settlement shows, across all their pools:
-  - **Owes**: $100 × rounds played in the period
-  - **Won**: sum of prizes won in the period
+- For each person in the pool the settlement shows:
+  - **Owes**: $100 × rounds in the period
+  - **Won**: weekly prizes and perfect-round bonuses won in the period
   - **Net**: won − owes (positive = collects, negative = pays)
-- An admin marks the period as settled; the action is recorded in the audit log.
+- The pool's sub-admin (or the admin) marks the period as settled; the action is
+  recorded in the audit log.
 
 ## 7. Roles
 
 | Role | Can |
 |---|---|
 | Admin | Everything, including naming and removing sub-admins |
-| Sub-admin | Manage **their assigned pool**: enrollments, payments, results, entering picks on behalf of a participant |
+| Sub-admin | Manage **their assigned pool**: enrollments, results, entering picks on behalf of a participant, and closing its monthly settlement |
 | Participant | Submit their own picks, view standings and money |
 
 Every admin action (pick entered on someone's behalf, result corrected, payment

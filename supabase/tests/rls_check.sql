@@ -137,6 +137,21 @@ begin
     report := report || E'\nPASS sub-admin cannot grant pool admin';
   end;
 
+  begin
+    insert into public.settlement_periods (pool_id, cutoff_at, settled_at, settled_by)
+    values (liga, '2099-01-03 00:00-06', now(), sub_id);
+    report := report || E'\nPASS sub-admin closes their pool''s settlement';
+  exception when others then
+    report := report || E'\nFAIL sub-admin closes their pool''s settlement: ' || sqlerrm; failures := failures + 1;
+  end;
+
+  begin
+    insert into public.settlement_periods (pool_id, cutoff_at) values (f1, '2099-01-03 00:00-06');
+    report := report || E'\nFAIL sub-admin touched another pool''s settlement'; failures := failures + 1;
+  exception when others then
+    report := report || E'\nPASS sub-admin cannot touch another pool''s settlement';
+  end;
+
   select count(*) into n from public.audit_log where entity = 'match_picks' and actor_id = sub_id;
   report := report || format(E'\n%s on-behalf pick is audited', case when n = 1 then 'PASS' else 'FAIL' end);
   if n <> 1 then failures := failures + 1; end if;
