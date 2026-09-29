@@ -55,7 +55,7 @@ Other participants' picks are hidden until the pick is locked.
 
 ## 4. Money per round
 
-These rules apply to Liga MX and F1. (NFL: to be confirmed.)
+The same rules apply to Liga MX, NFL and F1.
 
 - Every enrolled participant contributes **$100 MXN** per round.
 - `pot = participants × 100`
@@ -73,10 +73,10 @@ A participant who gets **every pick of a round right** wins **$1,000 MXN from th
 jackpot**, on top of the weekly prize.
 
 - Liga MX: every match of the matchday that counts (postponed matches are excluded).
+- NFL: every game of the week that has a winner (ties and cancelled games are excluded).
 - F1: all ten positions exact.
-- *Proposed, pending confirmation:* if several people have a perfect round, each one
-  gets $1,000. If the jackpot holds less than what is owed, whatever is left is split
-  equally among them.
+- If several people have a perfect round, each one gets $1,000. If the jackpot holds
+  less than what is owed, whatever is left is split equally among them.
 
 ### Rounding
 
