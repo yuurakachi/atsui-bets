@@ -41,7 +41,7 @@ The full rules are in [docs/RULES.md](docs/RULES.md).
 | Jobs | Supabase `pg_cron` + Edge Functions |
 | Hosting | Vercel |
 | Tests | Vitest |
-| Data sources | ESPN (NFL), API-Football (Liga MX), Jolpica (F1) |
+| Data sources | ESPN (Liga MX, NFL), Jolpica (F1) |
 
 Design notes, data model and permissions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

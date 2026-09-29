@@ -17,9 +17,14 @@ Everything fits in the free tiers for a group of ~15 people.
 
 | Sport | Source | Used for |
 |---|---|---|
-| NFL | ESPN public scoreboard API | Schedule, kickoff times, winners |
-| Liga MX | API-Football | Matchdays, kickoff times, results |
+| NFL | ESPN public scoreboard API (`football/nfl`) | Schedule, kickoff times, winners |
+| Liga MX | ESPN public scoreboard API (`soccer/mex.1`) | Matchdays, kickoff times, results |
 | F1 | Jolpica (Ergast successor) | Calendar, sprint weekends, classified results |
+
+API-Football was the first choice for Liga MX, but its free plan doesn't cover the
+current season. ESPN's endpoint is unofficial and has blocked some server-side
+requests, so the admin screens can also fetch it from the admin's browser, and results
+can always be entered by hand.
 
 Admins can always enter or correct results by hand; automatic imports are a
 convenience, never the only path.
