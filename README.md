@@ -20,9 +20,10 @@ computed for us.
   two or all three.
 - **Automatic deadlines** — per-sport lock rules in Mexico City time, from whole-matchday
   locks to per-game locks five minutes before kickoff.
-- **Prize engine** — each round's pot is split into a season jackpot and three prizes
-  (1st, *lucky seven* and *bobby*, the second-to-last), with fair tie splitting and
-  cent-exact rounding.
+- **Prize engine** — each round's pot pays a weekly prize to the winner and feeds a
+  season jackpot, which pays a bonus for perfect rounds and is split at the end of the
+  season between 1st, *lucky seven* and *bobby* (second-to-last), with fair tie
+  splitting and cent-exact rounding.
 - **Monthly settlement** — one statement per person per month: what they owe, what they
   won, and the net amount to pay or collect at the family meeting.
 - **Admins and sub-admins** — sub-admins manage their own sport, can enter picks on

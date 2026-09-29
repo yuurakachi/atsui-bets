@@ -55,12 +55,42 @@ Other participants' picks are hidden until the pick is locked.
 
 ## 4. Money per round
 
+These rules apply to Liga MX and F1. (NFL: to be confirmed.)
+
 - Every enrolled participant contributes **$100 MXN** per round.
 - `pot = participants × 100`
-- **30 %** of the pot goes to the pool's season **jackpot** (*acumulado*).
-- **70 %** is paid out that round:
+- **75 %** of the pot is the **weekly prize**, paid to the round's winner.
+- **25 %** goes to the pool's season **jackpot** (*acumulado*).
 
-| Prize | Position | Share of the 70 % |
+### Weekly prize
+
+Only first place wins. If several participants tie for the most points, they **split
+the weekly prize equally**.
+
+### Perfect round
+
+A participant who gets **every pick of a round right** wins **$1,000 MXN from the
+jackpot**, on top of the weekly prize.
+
+- Liga MX: every match of the matchday that counts (postponed matches are excluded).
+- F1: all ten positions exact.
+- *Proposed, pending confirmation:* if several people have a perfect round, each one
+  gets $1,000. If the jackpot holds less than what is owed, whatever is left is split
+  equally among them.
+
+### Rounding
+
+Amounts are computed in cents. When a split is not exact, each share is rounded down
+to the cent and the leftover cents go to the jackpot.
+
+## 5. Season jackpot
+
+`jackpot = 25 % of every round's pot − perfect-round bonuses paid`
+
+At the end of the season the jackpot is paid out using the **season standings** (sum of
+points over all rounds):
+
+| Prize | Position | Share of the jackpot |
 |---|---|---|
 | Winner | 1st | 50 % |
 | Lucky seven | 7th | 35 % |
@@ -77,16 +107,6 @@ Examples with 15 participants:
 - Two people tied for the most points occupy positions 1–2 → they split the 50 %.
 - Three people tied at positions 6–8 → the range contains 7 → they split the 35 %.
 - Positions 13–15 tied → the range contains 14 (N − 1) → they split the 15 %.
-
-### Rounding
-
-Amounts are computed in cents. When a split is not exact, each share is rounded down
-to the cent and the leftover cents go to the jackpot.
-
-## 5. Season jackpot
-
-At the end of the season each pool's jackpot is paid with the same 50 / 35 / 15 rule and
-the same tie handling, using the **season standings** (sum of points over all rounds).
 
 ## 6. Monthly settlement
 

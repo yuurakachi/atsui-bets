@@ -386,6 +386,7 @@ export type Database = {
       }
       round_results: {
         Row: {
+          bonus_cents: number
           player_id: string
           points: number
           position: number
@@ -393,6 +394,7 @@ export type Database = {
           round_id: string
         }
         Insert: {
+          bonus_cents?: number
           player_id: string
           points: number
           position: number
@@ -400,6 +402,7 @@ export type Database = {
           round_id: string
         }
         Update: {
+          bonus_cents?: number
           player_id?: string
           points?: number
           position?: number

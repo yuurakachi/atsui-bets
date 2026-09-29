@@ -14,7 +14,7 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { rankEntries, settleRound, type StandingEntry } from "../src/domain";
+import { distributePrizes, rankEntries, settleRound, type StandingEntry } from "../src/domain";
 
 const { values: args } = parseArgs({
   options: {
@@ -96,11 +96,10 @@ for (const [i, { title, index }] of roundColumns.entries()) {
   ) as x (name, points, position, prize)
   join import_players ip on ip.name = x.name;`);
 
-  const labels = { winner: "1°", lucky_seven: "7°", bobby: "Penúltimo" } as const;
-  const awards = round.awards
-    .map((a) => `${labels[a.kind]}: ${a.profileIds.join(", ")} (${pesos(a.perPersonCents)} c/u)`)
-    .join(" | ");
-  report.push(`${title.toUpperCase()}  bolsa ${pesos(round.potCents)}, acumulado ${pesos(round.jackpotCents)}\n    ${awards}`);
+  report.push(
+    `${title.toUpperCase()}  bolsa ${pesos(round.potCents)}, al acumulado ${pesos(round.jackpotCents)}` +
+      `  →  gana ${round.winnerIds.join(", ")} (${pesos(round.perWinnerCents)} c/u)`,
+  );
 }
 
 const playerStatements = players
@@ -148,4 +147,14 @@ for (const [player, cents] of [...wonByPlayer].sort((a, b) => b[1] - a[1])) {
   console.log(`  ${player.padEnd(10)} ${pesos(cents)}`);
 }
 console.log(`\nAcumulado de temporada: ${pesos(jackpotTotal)}`);
+
+// Who would take the jackpot if the season ended today.
+const seasonEntries: StandingEntry[] = rows.map((row) => ({
+  profileId: row[0],
+  points: roundColumns.reduce((acc, { index }) => acc + Number(row[index]), 0),
+}));
+const labels = { winner: "1°", lucky_seven: "7°", bobby: "Penúltimo" } as const;
+for (const award of distributePrizes(jackpotTotal, seasonEntries).awards) {
+  console.log(`  ${labels[award.kind].padEnd(10)} ${award.profileIds.join(", ")} (${pesos(award.perPersonCents)} c/u)`);
+}
 console.log(`SQL escrito en ${args.out}`);
