@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { PrizeKind } from "@/domain";
 import { canManagePool, requirePlayer } from "@/lib/dal";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatMoneyCompact, formatNet } from "@/lib/format";
 import { getPoolOverview } from "@/lib/pools";
 import { getUpcomingRounds } from "@/lib/rounds";
 import { UpcomingRoundCard } from "@/app/upcoming-round-card";
@@ -67,17 +67,18 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
       <section className="mt-8">
         <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Tabla general</h2>
         <div className="mt-3 overflow-hidden rounded-xl border border-border bg-surface">
-          <div className="grid grid-cols-[2rem_1fr_3rem_5.5rem] gap-2 border-b border-border px-3 py-2 text-xs font-medium text-muted">
+          <div className="grid grid-cols-[1.5rem_1fr_2.25rem_4.25rem_4.25rem] gap-1.5 border-b border-border px-3 py-2 text-xs font-medium text-muted">
             <span>#</span>
             <span>Jugador</span>
             <span className="text-right">Pts</span>
             <span className="text-right">Ganado</span>
+            <span className="text-right">Neto</span>
           </div>
           <ol>
             {pool.season.map((row) => (
               <li
                 key={row.playerId}
-                className={`grid grid-cols-[2rem_1fr_3rem_5.5rem] items-center gap-2 border-b border-border px-3 py-2.5 last:border-0 ${
+                className={`grid grid-cols-[1.5rem_1fr_2.25rem_4.25rem_4.25rem] items-center gap-1.5 border-b border-border px-3 py-2.5 last:border-0 ${
                   row.playerId === player.id ? "bg-accent/10" : ""
                 }`}
               >
@@ -94,13 +95,22 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
                   )}
                 </span>
                 <span className="text-right font-semibold tabular-nums">{row.points}</span>
-                <span className="text-right text-sm text-muted tabular-nums">{formatMoney(row.wonCents)}</span>
+                <span className="text-right text-sm text-muted tabular-nums">{formatMoneyCompact(row.wonCents)}</span>
+                <span
+                  className={`text-right text-sm font-medium tabular-nums ${
+                    row.netCents > 0 ? "text-emerald-600 dark:text-emerald-400" : row.netCents < 0 ? "text-red-500" : ""
+                  }`}
+                >
+                  {formatNet(row.netCents)}
+                </span>
               </li>
             ))}
           </ol>
         </div>
         <p className="mt-2 text-xs text-muted">
-          Las etiquetas marcan quién se llevaría el acumulado si la temporada terminara hoy.
+          Ganado: premios semanales y bonos de jornada perfecta. Neto: lo ganado menos lo pagado
+          ({formatMoneyCompact(pool.season[0]?.paidCents ?? 0)} en la temporada). El acumulado aún no cuenta;
+          las etiquetas marcan quién se lo llevaría si la temporada terminara hoy.
         </p>
       </section>
 
