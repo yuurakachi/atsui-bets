@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { signInWithGoogle } from "@/app/auth/actions";
 
 const ERRORS: Record<string, string> = {
@@ -31,6 +32,13 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             Entrar con Google
           </button>
         </form>
+
+        <p className="mt-8 text-xs text-muted">
+          Quiniela privada: solo pueden entrar los participantes registrados.{" "}
+          <Link href="/privacidad" className="underline hover:text-foreground">
+            Privacidad
+          </Link>
+        </p>
       </div>
     </main>
   );

@@ -90,6 +90,44 @@ export async function createRound(poolId: string, name: string, matches: MatchIn
   return { ok: true, message: `${roundName} creada con ${events.length} partidos.` };
 }
 
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Updates an enrolled player's nickname and email. Setting the email links their
+ * Google account: now if they already signed in once, otherwise on their first sign-in.
+ */
+export async function updatePlayer(poolId: string, playerId: string, form: FormData): Promise<ActionResult> {
+  if (!(await canManagePool(poolId))) return { ok: false, message: "No tienes permiso para esta quiniela." };
+
+  const nickname = String(form.get("nickname") ?? "").trim().slice(0, 30);
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  if (!nickname) return { ok: false, message: "El apodo no puede quedar vacío." };
+  if (email && !EMAIL.test(email)) return { ok: false, message: "Ese correo no es válido." };
+
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("enrollments")
+    .select("*", { count: "exact", head: true })
+    .eq("pool_id", poolId)
+    .eq("player_id", playerId);
+  if (!count) return { ok: false, message: "Ese jugador no está en esta quiniela." };
+
+  const { error } = await supabase
+    .from("players")
+    .update({ nickname, email: email || null })
+    .eq("id", playerId);
+  if (error) {
+    if (error.code === "23505") return { ok: false, message: "Ese correo ya lo tiene otro jugador." };
+    if (error.message.includes("registered player")) {
+      return { ok: false, message: "Este jugador ya entró a la app; solo el admin puede cambiar su correo." };
+    }
+    return { ok: false, message: "No se pudo guardar. Intenta de nuevo." };
+  }
+
+  revalidatePath(`/quinielas/${poolId}`, "layout");
+  return { ok: true, message: "Guardado." };
+}
+
 /** Saves final results fetched from ESPN and scores the round once all are in. */
 export async function saveResults(poolId: string, roundId: string, matches: MatchInput[]): Promise<ActionResult> {
   if (!(await canManagePool(poolId))) return { ok: false, message: "No tienes permiso para esta quiniela." };
