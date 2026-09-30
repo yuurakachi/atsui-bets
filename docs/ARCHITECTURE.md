@@ -119,6 +119,7 @@ with `npx supabase db query --linked -f <file>`. Real family data lives in `data
 | `scripts/import-standings.ts` | A Liga MX / NFL season played before the app (points per round) |
 | `scripts/import-round.ts` | One Liga MX / NFL round played outside the app, with picks |
 | `scripts/import-f1-season.ts` | The F1 season before the app: pool, players, sub-admin, every raced round (Sprints included) with dates, prizes, perfect-round bonuses and settlement periods, checked against the family's jackpot |
+| `scripts/import-f1-picks.ts` | P1–P10 picks of one F1 round collected outside the app, to score it in the app afterwards |
 
 ## Screens
 

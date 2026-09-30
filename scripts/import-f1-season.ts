@@ -91,7 +91,26 @@ async function main() {
     }
   }
 
-  if (columns.length > calendar.length) throw new Error(`${columns.length} columns but only ${calendar.length} rounds.`);
+  // Columns titled with the app's round names ("Sprint China", "GP China"…) are matched by
+  // name, which survives cancelled races still listed in the calendar; otherwise by order.
+  const key = (name: string) => name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const byName = new Map(calendar.map((round) => [key(round.name), round]));
+  const unknown = columns.filter(({ title }) => !byName.has(key(title)));
+  const plans =
+    unknown.length === 0
+      ? columns.map(({ title }) => byName.get(key(title))!)
+      : unknown.length === columns.length
+        ? calendar.slice(0, columns.length)
+        : (() => {
+            throw new Error(
+              `Unknown rounds: ${unknown.map((c) => c.title).join(", ")}. ` +
+                `Calendar: ${calendar.map((r) => r.name).join(", ")}.`,
+            );
+          })();
+  if (plans.length < columns.length) throw new Error(`${columns.length} columns but only ${calendar.length} rounds.`);
+  if (plans.some((plan, i) => i > 0 && plan.ordinal <= plans[i - 1].ordinal)) {
+    throw new Error("Columns must follow the calendar order.");
+  }
   const paid = Number(args.paid);
   if (!Number.isInteger(paid) || paid < 0 || paid > columns.length) throw new Error(`--paid must be 0–${columns.length}.`);
 
@@ -105,7 +124,7 @@ async function main() {
   const wonByPlayer = new Map(players.map((p) => [p, 0]));
 
   const rounds = columns.map(({ title, index }, i) => {
-    const plan = calendar[i];
+    const plan = plans[i];
     const finishedAt = roundFinishedAt("f1", [plan.startsAt]);
     if (finishedAt.getTime() > now) throw new Error(`Column ${title} maps to ${plan.name}, which hasn't finished.`);
 
