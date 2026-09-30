@@ -1,7 +1,7 @@
 /**
  * Monthly settlement. See docs/RULES.md §6.
  */
-import { addMinutes, previousOrSame, SATURDAY, zonedTime, addDays } from "./time";
+import { addDays, addMinutes, localDateOf, previousOrSame, SATURDAY, zonedTime } from "./time";
 import type { Cents, ProfileId, Sport } from "./types";
 
 /** Estimated length of an event, used to know when a round has finished. */
@@ -21,6 +21,14 @@ export function roundFinishedAt(sport: Sport, eventStarts: readonly Date[]): Dat
 export function defaultCutoff(year: number, month: number): Date {
   const firstSaturday = previousOrSame(addDays({ year, month, day: 1 }, 6), SATURDAY);
   return zonedTime(firstSaturday, 0, 0);
+}
+
+/** The first default cutoff strictly after `instant`: the meeting that settles a round finished then. */
+export function nextDefaultCutoff(instant: Date): Date {
+  const { year, month } = localDateOf(instant);
+  const sameMonth = defaultCutoff(year, month);
+  if (instant.getTime() < sameMonth.getTime()) return sameMonth;
+  return month === 12 ? defaultCutoff(year + 1, 1) : defaultCutoff(year, month + 1);
 }
 
 export interface SettlementPeriod {

@@ -72,9 +72,11 @@ npm run lint
 
 - [x] Game rules and architecture
 - [x] Rules engine: scoring, tie-aware prizes, deadlines, monthly settlement
-- [ ] Database schema, auth and roles (Supabase)
-- [ ] Liga MX end to end, including import of the current season
+- [x] Database schema, auth and roles (Supabase)
+- [x] Liga MX end to end: import of the current season, fixtures from ESPN, picks,
+      automatic scoring, standings
+- [x] Monthly settlement per pool
+- [ ] Admin screen for players and emails
 - [ ] Formula 1 with Sprint weekends
-- [ ] Payments, monthly settlement screen and season jackpots
 - [ ] NFL (replacing Yahoo Fantasy)
 - [ ] Push notifications and "who's missing" WhatsApp reminders

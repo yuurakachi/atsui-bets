@@ -1,0 +1,250 @@
+import "server-only";
+import { cache } from "react";
+import {
+  ligaMxRoundLock,
+  nextDefaultCutoff,
+  nflGameLock,
+  perfectRoundBonus,
+  rankEntries,
+  roundFinishedAt,
+  scoreMatchPicks,
+  settleRound,
+  type MatchOutcome,
+  type MatchResult,
+  type Sport,
+} from "@/domain";
+import { playerName } from "./format";
+import { createClient } from "./supabase/server";
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+export interface NewEvent {
+  externalId: string;
+  home: string;
+  away: string;
+  startsAt: Date;
+}
+
+/** Lock time per event, following docs/RULES.md §3. */
+export function lockTimes(sport: Sport, events: readonly NewEvent[]): Date[] {
+  const firstKickoff = new Date(Math.min(...events.map((e) => e.startsAt.getTime())));
+  return events.map((e) => (sport === "liga_mx" ? ligaMxRoundLock(firstKickoff) : nflGameLock(e.startsAt)));
+}
+
+export interface RoundDetail {
+  id: string;
+  poolId: string;
+  sport: Sport;
+  name: string;
+  status: "scheduled" | "completed" | "cancelled";
+  events: {
+    id: string;
+    home: string;
+    away: string;
+    startsAt: Date;
+    lockAt: Date;
+    result: MatchResult | null;
+  }[];
+  players: { id: string; name: string }[];
+  /** Picks this player is allowed to see: their own, everyone's after the lock, all for pool admins. */
+  picks: { eventId: string; playerId: string; selection: MatchOutcome }[];
+}
+
+export const getRoundDetail = cache(async (poolId: string, roundId: string): Promise<RoundDetail | null> => {
+  const supabase = await createClient();
+  const { data: round } = await supabase
+    .from("rounds")
+    .select("id, pool_id, name, status, pool:pools(sport)")
+    .eq("id", roundId)
+    .eq("pool_id", poolId)
+    .maybeSingle();
+  if (!round?.pool) return null;
+
+  const [{ data: events }, { data: enrollments }] = await Promise.all([
+    supabase
+      .from("events")
+      .select("id, home_team, away_team, starts_at, lock_at, result")
+      .eq("round_id", roundId)
+      .order("starts_at"),
+    supabase.from("enrollments").select("player:players(id, display_name, nickname)").eq("pool_id", poolId),
+  ]);
+  const { data: picks } = await supabase
+    .from("match_picks")
+    .select("event_id, player_id, selection")
+    .in("event_id", (events ?? []).map((e) => e.id));
+
+  return {
+    id: round.id,
+    poolId: round.pool_id,
+    sport: round.pool.sport,
+    name: round.name,
+    status: round.status,
+    events: (events ?? []).map((e) => ({
+      id: e.id,
+      home: e.home_team ?? "?",
+      away: e.away_team ?? "?",
+      startsAt: new Date(e.starts_at),
+      lockAt: new Date(e.lock_at),
+      result: (e.result as MatchResult | null) ?? null,
+    })),
+    players: (enrollments ?? [])
+      .flatMap((e) => (e.player ? [{ id: e.player.id, name: playerName(e.player) }] : []))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    picks: (picks ?? []).map((p) => ({ eventId: p.event_id, playerId: p.player_id, selection: p.selection })),
+  };
+});
+
+export interface UpcomingRound {
+  id: string;
+  poolId: string;
+  name: string;
+  firstLockAt: Date;
+  /** Every event has locked. */
+  closed: boolean;
+  events: number;
+  /** Events still open that the player hasn't picked. */
+  missing: number;
+}
+
+/** Scheduled rounds of the given pools, with how many open picks the player is missing. */
+export const getUpcomingRounds = cache(async (poolIds: string[], playerId: string): Promise<UpcomingRound[]> => {
+  if (poolIds.length === 0) return [];
+  const supabase = await createClient();
+  const { data: rounds } = await supabase
+    .from("rounds")
+    .select("id, pool_id, name, ordinal, events(id, lock_at)")
+    .in("pool_id", poolIds)
+    .eq("status", "scheduled")
+    .order("ordinal");
+
+  const eventIds = (rounds ?? []).flatMap((r) => r.events.map((e) => e.id));
+  const { data: mine } = eventIds.length
+    ? await supabase.from("match_picks").select("event_id").eq("player_id", playerId).in("event_id", eventIds)
+    : { data: [] };
+  const picked = new Set((mine ?? []).map((p) => p.event_id));
+  const now = Date.now();
+
+  return (rounds ?? [])
+    .filter((r) => r.events.length > 0)
+    .map((r) => ({
+      id: r.id,
+      poolId: r.pool_id,
+      name: r.name,
+      firstLockAt: new Date(Math.min(...r.events.map((e) => new Date(e.lock_at).getTime()))),
+      closed: r.events.every((e) => new Date(e.lock_at).getTime() <= now),
+      events: r.events.length,
+      missing: r.events.filter((e) => new Date(e.lock_at).getTime() > now && !picked.has(e.id)).length,
+    }));
+});
+
+/**
+ * Scores a round once every event has a result: points, weekly prize, jackpot share,
+ * perfect-round bonus and settlement period. Runs with the caller's session, so only
+ * the pool's admins can do it (row level security). Returns false if results are missing.
+ */
+export async function scoreRound(supabase: Supabase, roundId: string): Promise<boolean> {
+  const { data: round } = await supabase
+    .from("rounds")
+    .select("id, pool_id, pool:pools(sport, entry_fee_cents, jackpot_opening_cents)")
+    .eq("id", roundId)
+    .single();
+  if (!round?.pool) throw new Error("Jornada no encontrada.");
+
+  const { data: events } = await supabase
+    .from("events")
+    .select("id, starts_at, result")
+    .eq("round_id", roundId);
+  if (!events?.length || events.some((e) => e.result === null)) return false;
+
+  const [{ data: enrollments }, { data: picks }, { data: previousRounds }] = await Promise.all([
+    supabase.from("enrollments").select("player_id").eq("pool_id", round.pool_id),
+    supabase
+      .from("match_picks")
+      .select("event_id, player_id, selection")
+      .in("event_id", events.map((e) => e.id)),
+    supabase
+      .from("rounds")
+      .select("id, jackpot_cents")
+      .eq("pool_id", round.pool_id)
+      .eq("status", "completed")
+      .neq("id", roundId),
+  ]);
+
+  // Jackpot balance before this round, to pay a perfect-round bonus.
+  const { data: previousBonuses } = await supabase
+    .from("round_results")
+    .select("bonus_cents")
+    .in("round_id", (previousRounds ?? []).map((r) => r.id));
+  const jackpotBalance =
+    round.pool.jackpot_opening_cents +
+    (previousRounds ?? []).reduce((acc, r) => acc + (r.jackpot_cents ?? 0), 0) -
+    (previousBonuses ?? []).reduce((acc, r) => acc + r.bonus_cents, 0);
+
+  const scored = events.map((e) => ({ id: e.id, result: e.result as MatchResult }));
+  const entries = (enrollments ?? []).map(({ player_id }) => {
+    const mine = Object.fromEntries(
+      (picks ?? []).filter((p) => p.player_id === player_id).map((p) => [p.event_id, p.selection]),
+    );
+    return { profileId: player_id, points: scoreMatchPicks(scored, mine) };
+  });
+
+  const maxPoints = scored.filter((e) => e.result !== "void").length;
+  const settlement = settleRound(entries, { entryFeeCents: round.pool.entry_fee_cents, maxPoints });
+  const bonus = perfectRoundBonus(jackpotBalance, settlement.perfectIds.length);
+  const positions = new Map<string, number>();
+  for (const group of rankEntries(entries)) for (const id of group.profileIds) positions.set(id, group.from);
+
+  const periodId = await settlementPeriodFor(
+    supabase,
+    round.pool_id,
+    roundFinishedAt(round.pool.sport, events.map((e) => new Date(e.starts_at))),
+  );
+
+  const { error: deleteError } = await supabase.from("round_results").delete().eq("round_id", roundId);
+  if (deleteError) throw new Error(deleteError.message);
+  const { error: insertError } = await supabase.from("round_results").insert(
+    entries.map((e) => ({
+      round_id: roundId,
+      player_id: e.profileId,
+      points: e.points,
+      position: positions.get(e.profileId)!,
+      prize_cents: settlement.wonCents.get(e.profileId) ?? 0,
+      bonus_cents: settlement.perfectIds.includes(e.profileId) ? bonus : 0,
+    })),
+  );
+  if (insertError) throw new Error(insertError.message);
+
+  const { error: roundError } = await supabase
+    .from("rounds")
+    .update({
+      status: "completed",
+      pot_cents: settlement.potCents,
+      jackpot_cents: settlement.jackpotCents,
+      settlement_period_id: periodId,
+    })
+    .eq("id", roundId);
+  if (roundError) throw new Error(roundError.message);
+  return true;
+}
+
+/** The pool's first open settlement period after the round finished, created if needed. */
+async function settlementPeriodFor(supabase: Supabase, poolId: string, finishedAt: Date): Promise<string> {
+  const { data: existing } = await supabase
+    .from("settlement_periods")
+    .select("id")
+    .eq("pool_id", poolId)
+    .gt("cutoff_at", finishedAt.toISOString())
+    .is("settled_at", null)
+    .order("cutoff_at")
+    .limit(1)
+    .maybeSingle();
+  if (existing) return existing.id;
+
+  const { data: created, error } = await supabase
+    .from("settlement_periods")
+    .insert({ pool_id: poolId, cutoff_at: nextDefaultCutoff(finishedAt).toISOString() })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return created.id;
+}

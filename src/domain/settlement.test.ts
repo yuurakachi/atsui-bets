@@ -1,11 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { assignSettlementPeriod, buildStatement, defaultCutoff, roundFinishedAt } from "./settlement";
+import {
+  assignSettlementPeriod,
+  buildStatement,
+  defaultCutoff,
+  nextDefaultCutoff,
+  roundFinishedAt,
+} from "./settlement";
 
 describe("defaultCutoff", () => {
   it("is 00:00 of the first Saturday of the month in Mexico City", () => {
     expect(defaultCutoff(2026, 10).toISOString()).toBe("2026-10-03T06:00:00.000Z"); // Sat Oct 3
     expect(defaultCutoff(2026, 11).toISOString()).toBe("2026-11-07T06:00:00.000Z"); // Sat Nov 7
     expect(defaultCutoff(2026, 8).toISOString()).toBe("2026-08-01T06:00:00.000Z"); // Aug 1 is a Saturday
+  });
+});
+
+describe("nextDefaultCutoff", () => {
+  it("is this month's meeting when the round finished before it", () => {
+    // Friday Oct 2, 21:00 CDMX
+    expect(nextDefaultCutoff(new Date("2026-10-03T03:00:00Z")).toISOString()).toBe("2026-10-03T06:00:00.000Z");
+  });
+
+  it("is next month's meeting when the round finished on or after this month's", () => {
+    // Sunday Oct 11, 21:00 CDMX
+    expect(nextDefaultCutoff(new Date("2026-10-12T03:00:00Z")).toISOString()).toBe("2026-11-07T06:00:00.000Z");
+  });
+
+  it("rolls over the year", () => {
+    expect(nextDefaultCutoff(new Date("2026-12-20T18:00:00Z")).toISOString()).toBe("2027-01-02T06:00:00.000Z");
   });
 });
 

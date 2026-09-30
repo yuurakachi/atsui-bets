@@ -1,8 +1,10 @@
 import Link from "next/link";
 import type { PrizeKind } from "@/domain";
-import { requirePlayer } from "@/lib/dal";
+import { canManagePool, requirePlayer } from "@/lib/dal";
 import { formatMoney } from "@/lib/format";
 import { getPoolOverview } from "@/lib/pools";
+import { getUpcomingRounds } from "@/lib/rounds";
+import { UpcomingRoundCard } from "@/app/upcoming-round-card";
 
 const JACKPOT_LABEL: Record<PrizeKind, string> = {
   winner: "1°",
@@ -13,7 +15,11 @@ const JACKPOT_LABEL: Record<PrizeKind, string> = {
 export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId]">) {
   const { poolId } = await params;
   const player = await requirePlayer();
-  const pool = await getPoolOverview(poolId);
+  const [pool, manager, upcoming] = await Promise.all([
+    getPoolOverview(poolId),
+    canManagePool(poolId),
+    getUpcomingRounds([poolId], player.id),
+  ]);
   const rounds = [...pool.rounds].reverse();
 
   return (
@@ -21,7 +27,25 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
       <Link href="/" className="text-sm text-muted hover:text-foreground">
         ← Inicio
       </Link>
-      <h1 className="mt-2 text-2xl font-bold">{pool.name}</h1>
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">{pool.name}</h1>
+        {manager && (
+          <Link
+            href={`/quinielas/${pool.id}/admin`}
+            className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition hover:border-accent"
+          >
+            Administrar
+          </Link>
+        )}
+      </div>
+
+      {upcoming.length > 0 && (
+        <section className="mt-6 space-y-2">
+          {upcoming.map((round) => (
+            <UpcomingRoundCard key={round.id} round={round} />
+          ))}
+        </section>
+      )}
 
       <section className="mt-6 rounded-2xl bg-accent px-5 py-4 text-accent-foreground">
         <p className="text-sm font-medium opacity-80">Acumulado de la temporada</p>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { signOut } from "@/app/auth/actions";
 import { requirePlayer } from "@/lib/dal";
+import { getUpcomingRounds } from "@/lib/rounds";
+import { UpcomingRoundCard } from "./upcoming-round-card";
 import { createClient } from "@/lib/supabase/server";
 import type { Sport } from "@/domain";
 
@@ -19,6 +21,8 @@ export default async function HomePage() {
     .eq("player_id", player.id);
 
   const pools = (enrollments ?? []).map((e) => e.pool).filter((p) => p !== null);
+  const upcoming = await getUpcomingRounds(pools.map((p) => p.id), player.id);
+  const poolName = new Map(pools.map((p) => [p.id, p.name]));
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
@@ -41,6 +45,17 @@ export default async function HomePage() {
         </div>
       </header>
 
+      {upcoming.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Tus pics</h2>
+          <div className="mt-3 space-y-2">
+            {upcoming.map((round) => (
+              <UpcomingRoundCard key={round.id} round={round} poolName={poolName.get(round.poolId)} />
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="mt-8">
         <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Tus quinielas</h2>
         {pools.length === 0 ? (
@@ -62,6 +77,7 @@ export default async function HomePage() {
             ))}
           </ul>
         )}
-      </section>    </main>
+      </section>
+    </main>
   );
 }
