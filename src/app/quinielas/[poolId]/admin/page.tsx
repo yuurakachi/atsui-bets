@@ -1,11 +1,15 @@
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TIME_ZONE } from "@/domain";
 import { canManagePool } from "@/lib/dal";
-import { createClient } from "@/lib/supabase/server";
 import { playerName } from "@/lib/format";
+import { reminderMessage, roundTitle } from "@/lib/reminders";
+import { getOpenRoundsProgress } from "@/lib/rounds";
+import { createClient } from "@/lib/supabase/server";
 import { upcomingWeekend } from "./dates";
 import { PlayerRow } from "./player-row";
+import { ReminderCard } from "./reminder-card";
 import { ResultsUpdater, RoundLoader } from "./round-loader";
 
 const isoDay = (date: Date) => date.toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
@@ -15,7 +19,7 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
   if (!(await canManagePool(poolId))) notFound();
 
   const supabase = await createClient();
-  const [{ data: pool }, { data: rounds }, { data: enrollments }] = await Promise.all([
+  const [{ data: pool }, { data: rounds }, { data: enrollments }, openRounds, requestHeaders] = await Promise.all([
     supabase.from("pools").select("id, name, sport").eq("id", poolId).single(),
     supabase
       .from("rounds")
@@ -26,6 +30,8 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
       .from("enrollments")
       .select("player:players(id, display_name, nickname, email, user_id)")
       .eq("pool_id", poolId),
+    getOpenRoundsProgress(poolId),
+    headers(),
   ]);
   if (!pool) notFound();
 
@@ -38,6 +44,8 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
     .map((p) => ({ id: p.id, nickname: playerName(p), email: p.email, signedIn: p.user_id !== null }))
     .sort((a, b) => a.nickname.localeCompare(b.nickname));
   const withoutEmail = players.filter((p) => !p.email).length;
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const origin = host ? `${requestHeaders.get("x-forwarded-proto") ?? "https"}://${host}` : "";
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
@@ -47,6 +55,41 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
       <h1 className="mt-2 text-2xl font-bold">Administrar</h1>
 
       <section className="mt-6">
+        <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Recordatorios</h2>
+        {openRounds.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">No hay jornadas con pics abiertos.</p>
+        ) : (
+          <>
+            <p className="mt-1 mb-3 text-sm text-muted">
+              Manda el mensaje al grupo de WhatsApp. Solo dice quién falta, nunca los pics de nadie.
+            </p>
+            <div className="space-y-2">
+              {openRounds.map((round) => {
+                const done = round.players - round.missing.length;
+                return (
+                  <ReminderCard
+                    key={round.id}
+                    title={roundTitle(round.name)}
+                    status={round.missing.length === 0 ? "✓ Todos listos" : `${done} de ${round.players} listos`}
+                    message={reminderMessage({
+                      sport: pool.sport,
+                      poolName: pool.name,
+                      roundName: round.name,
+                      lockAt: round.firstLockAt,
+                      url: origin,
+                      missing: round.missing,
+                      openEvents: round.openEvents,
+                      players: round.players,
+                    })}
+                  />
+                );
+              })}
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="mt-8">
         <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Cargar jornada</h2>
         <p className="mt-1 mb-3 text-sm text-muted">
           Busca los partidos de la próxima jornada en ESPN, revísalos y crea la jornada. Los pics

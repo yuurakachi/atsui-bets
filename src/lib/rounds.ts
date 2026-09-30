@@ -137,6 +137,56 @@ export const getUpcomingRounds = cache(async (poolIds: string[], playerId: strin
     }));
 });
 
+export interface OpenRoundProgress {
+  id: string;
+  name: string;
+  firstLockAt: Date;
+  openEvents: number;
+  players: number;
+  missing: { name: string; count: number }[];
+}
+
+/**
+ * Open rounds of a pool with who still has open picks left. Needs a pool admin's
+ * session: row level security hides other players' picks before the lock.
+ */
+export async function getOpenRoundsProgress(poolId: string): Promise<OpenRoundProgress[]> {
+  const supabase = await createClient();
+  const [{ data: rounds }, { data: enrollments }] = await Promise.all([
+    supabase
+      .from("rounds")
+      .select("id, name, ordinal, events(id, lock_at)")
+      .eq("pool_id", poolId)
+      .eq("status", "scheduled")
+      .order("ordinal"),
+    supabase.from("enrollments").select("player:players(id, display_name, nickname)").eq("pool_id", poolId),
+  ]);
+  const players = (enrollments ?? [])
+    .flatMap((e) => (e.player ? [{ id: e.player.id, name: playerName(e.player) }] : []))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const now = Date.now();
+  const open = (rounds ?? [])
+    .map((r) => ({ ...r, events: r.events.filter((e) => new Date(e.lock_at).getTime() > now) }))
+    .filter((r) => r.events.length > 0);
+  const eventIds = open.flatMap((r) => r.events.map((e) => e.id));
+  const { data: picks } = eventIds.length
+    ? await supabase.from("match_picks").select("event_id, player_id").in("event_id", eventIds)
+    : { data: [] };
+  const picked = new Set((picks ?? []).map((p) => `${p.player_id}:${p.event_id}`));
+
+  return open.map((r) => ({
+    id: r.id,
+    name: r.name,
+    firstLockAt: new Date(Math.min(...r.events.map((e) => new Date(e.lock_at).getTime()))),
+    openEvents: r.events.length,
+    players: players.length,
+    missing: players
+      .map((p) => ({ name: p.name, count: r.events.filter((e) => !picked.has(`${p.id}:${e.id}`)).length }))
+      .filter((p) => p.count > 0),
+  }));
+}
+
 /**
  * Scores a round once every event has a result: points, weekly prize, jackpot share,
  * perfect-round bonus and settlement period. Runs with the caller's session, so only
