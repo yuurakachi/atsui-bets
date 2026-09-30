@@ -11,6 +11,10 @@ export interface EspnMatch {
   startsAt: string;
   /** null while the match isn't final. */
   result: MatchResult | null;
+  state: "pre" | "in" | "post";
+  score: { home: number; away: number } | null;
+  /** Minute while playing ("67'"), or ESPN's short status ("FT"). */
+  clock: string;
 }
 
 const LEAGUE_PATH: Partial<Record<Sport, string>> = {
@@ -42,7 +46,13 @@ interface EspnCompetitor {
 interface EspnEvent {
   id: string;
   date: string;
-  competitions: { status: { type: { name: string; completed: boolean } }; competitors: EspnCompetitor[] }[];
+  competitions: {
+    status: {
+      displayClock?: string;
+      type: { name: string; completed: boolean; state?: string; shortDetail?: string };
+    };
+    competitors: EspnCompetitor[];
+  }[];
 }
 
 const VOID_STATUSES = new Set(["STATUS_POSTPONED", "STATUS_CANCELED", "STATUS_ABANDONED", "STATUS_FORFEIT"]);
@@ -61,7 +71,10 @@ function resultOf(event: EspnEvent): MatchResult | null {
 }
 
 function toMatch(event: EspnEvent): EspnMatch {
-  const competitors = event.competitions[0].competitors;
+  const { competitors, status } = event.competitions[0];
+  const state = status.type.state === "in" || status.type.state === "post" ? status.type.state : "pre";
+  const home = Number(competitors.find((c) => c.homeAway === "home")?.score);
+  const away = Number(competitors.find((c) => c.homeAway === "away")?.score);
   const name = (side: "home" | "away") => {
     const official = competitors.find((c) => c.homeAway === side)?.team.displayName ?? "?";
     return TEAM_NAMES[official] ?? official;
@@ -72,6 +85,9 @@ function toMatch(event: EspnEvent): EspnMatch {
     away: name("away"),
     startsAt: new Date(event.date).toISOString(),
     result: resultOf(event),
+    state,
+    score: state !== "pre" && !Number.isNaN(home) && !Number.isNaN(away) ? { home, away } : null,
+    clock: (state === "in" ? status.displayClock : status.type.shortDetail) ?? "",
   };
 }
 

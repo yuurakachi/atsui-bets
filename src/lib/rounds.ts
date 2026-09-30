@@ -39,6 +39,7 @@ export interface RoundDetail {
   status: "scheduled" | "completed" | "cancelled";
   events: {
     id: string;
+    externalId: string | null;
     home: string;
     away: string;
     startsAt: Date;
@@ -63,7 +64,7 @@ export const getRoundDetail = cache(async (poolId: string, roundId: string): Pro
   const [{ data: events }, { data: enrollments }] = await Promise.all([
     supabase
       .from("events")
-      .select("id, home_team, away_team, starts_at, lock_at, result")
+      .select("id, external_id, home_team, away_team, starts_at, lock_at, result")
       .eq("round_id", roundId)
       .order("starts_at"),
     supabase.from("enrollments").select("player:players(id, display_name, nickname)").eq("pool_id", poolId),
@@ -81,6 +82,7 @@ export const getRoundDetail = cache(async (poolId: string, roundId: string): Pro
     status: round.status,
     events: (events ?? []).map((e) => ({
       id: e.id,
+      externalId: e.external_id,
       home: e.home_team ?? "?",
       away: e.away_team ?? "?",
       startsAt: new Date(e.starts_at),
