@@ -77,6 +77,7 @@ npm run lint
       automatic scoring, standings
 - [x] Monthly settlement per pool
 - [ ] Admin screen for players and emails
-- [ ] Formula 1 with Sprint weekends
+- [x] Formula 1 with Sprint weekends: calendar and results from Jolpica, P1–P10 picks,
+      import of the current season
 - [ ] NFL (replacing Yahoo Fantasy)
 - [ ] Push notifications and "who's missing" WhatsApp reminders

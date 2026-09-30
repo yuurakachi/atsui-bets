@@ -1,12 +1,15 @@
 import "server-only";
 import { cache } from "react";
 import {
+  F1_PICK_POSITIONS,
   ligaMxRoundLock,
   nextDefaultCutoff,
   nflGameLock,
+  orderByPosition,
   perfectRoundBonus,
   rankEntries,
   roundFinishedAt,
+  scoreF1Pick,
   scoreMatchPicks,
   settleRound,
   type MatchOutcome,
@@ -97,71 +100,98 @@ export const getRoundDetail = cache(async (poolId: string, roundId: string): Pro
 export interface UpcomingRound {
   id: string;
   poolId: string;
+  sport: Sport;
   name: string;
   firstLockAt: Date;
   /** Every event has locked. */
   closed: boolean;
+  /** Picks to make: one per match, or ten positions per F1 race. */
   events: number;
-  /** Events still open that the player hasn't picked. */
+  /** Picks still open that the player hasn't made. */
   missing: number;
 }
 
-/** Scheduled rounds of the given pools, with how many open picks the player is missing. */
+/** Rounds more than this far after a pool's next deadline aren't shown yet (F1 loads the whole season). */
+const UPCOMING_WINDOW_MS = 4 * 24 * 60 * 60 * 1000;
+
+/**
+ * Scheduled rounds of the given pools, with how many open picks the player is missing:
+ * rounds waiting for results, and those of each pool's next deadline.
+ */
 export const getUpcomingRounds = cache(async (poolIds: string[], playerId: string): Promise<UpcomingRound[]> => {
   if (poolIds.length === 0) return [];
   const supabase = await createClient();
   const { data: rounds } = await supabase
     .from("rounds")
-    .select("id, pool_id, name, ordinal, events(id, lock_at)")
+    .select("id, pool_id, name, ordinal, pool:pools(sport), events(id, lock_at)")
     .in("pool_id", poolIds)
     .eq("status", "scheduled")
     .order("ordinal");
 
   const eventIds = (rounds ?? []).flatMap((r) => r.events.map((e) => e.id));
-  const { data: mine } = eventIds.length
-    ? await supabase.from("match_picks").select("event_id").eq("player_id", playerId).in("event_id", eventIds)
-    : { data: [] };
-  const picked = new Set((mine ?? []).map((p) => p.event_id));
+  const [{ data: matchPicks }, { data: f1Picks }] = eventIds.length
+    ? await Promise.all([
+        supabase.from("match_picks").select("event_id").eq("player_id", playerId).in("event_id", eventIds),
+        supabase.from("f1_picks").select("event_id").eq("player_id", playerId).in("event_id", eventIds),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const picked = new Map<string, number>();
+  for (const p of [...(matchPicks ?? []), ...(f1Picks ?? [])]) picked.set(p.event_id, (picked.get(p.event_id) ?? 0) + 1);
   const now = Date.now();
 
-  return (rounds ?? [])
-    .filter((r) => r.events.length > 0)
-    .map((r) => ({
-      id: r.id,
-      poolId: r.pool_id,
-      name: r.name,
-      firstLockAt: new Date(Math.min(...r.events.map((e) => new Date(e.lock_at).getTime()))),
-      closed: r.events.every((e) => new Date(e.lock_at).getTime() <= now),
-      events: r.events.length,
-      missing: r.events.filter((e) => new Date(e.lock_at).getTime() > now && !picked.has(e.id)).length,
-    }));
+  const upcoming = (rounds ?? [])
+    .filter((r) => r.events.length > 0 && r.pool)
+    .map((r) => {
+      const sport = r.pool!.sport;
+      const perEvent = sport === "f1" ? F1_PICK_POSITIONS : 1;
+      const open = r.events.filter((e) => new Date(e.lock_at).getTime() > now);
+      return {
+        id: r.id,
+        poolId: r.pool_id,
+        sport,
+        name: r.name,
+        firstLockAt: new Date(Math.min(...r.events.map((e) => new Date(e.lock_at).getTime()))),
+        closed: open.length === 0,
+        events: r.events.length * perEvent,
+        missing: open.reduce((acc, e) => acc + perEvent - Math.min(perEvent, picked.get(e.id) ?? 0), 0),
+      };
+    });
+
+  const nextDeadline = new Map<string, number>();
+  for (const r of upcoming) {
+    if (r.closed) continue;
+    const lock = r.firstLockAt.getTime();
+    nextDeadline.set(r.poolId, Math.min(lock, nextDeadline.get(r.poolId) ?? lock));
+  }
+  return upcoming.filter((r) => r.closed || r.firstLockAt.getTime() <= nextDeadline.get(r.poolId)! + UPCOMING_WINDOW_MS);
 });
 
 /**
  * Scores a round once every event has a result: points, weekly prize, jackpot share,
  * perfect-round bonus and settlement period. Runs with the caller's session, so only
  * the pool's admins can do it (row level security). Returns false if results are missing.
+ * Re-scoring (e.g. an F1 disqualification) keeps the round's settlement period, and is
+ * refused once that period's money has been settled.
  */
 export async function scoreRound(supabase: Supabase, roundId: string): Promise<boolean> {
   const { data: round } = await supabase
     .from("rounds")
-    .select("id, pool_id, pool:pools(sport, entry_fee_cents, jackpot_opening_cents)")
+    .select(
+      "id, pool_id, settlement_period_id, pool:pools(sport, entry_fee_cents, jackpot_opening_cents), period:settlement_periods(settled_at)",
+    )
     .eq("id", roundId)
     .single();
   if (!round?.pool) throw new Error("Jornada no encontrada.");
+  if (round.period?.settled_at) throw new Error("Esta jornada ya se liquidó en un corte; no se puede recalificar.");
 
   const { data: events } = await supabase
     .from("events")
     .select("id, starts_at, result")
     .eq("round_id", roundId);
-  if (!events?.length || events.some((e) => e.result === null)) return false;
+  if (!events?.length) return false;
 
-  const [{ data: enrollments }, { data: picks }, { data: previousRounds }] = await Promise.all([
+  const [{ data: enrollments }, { data: previousRounds }] = await Promise.all([
     supabase.from("enrollments").select("player_id").eq("pool_id", round.pool_id),
-    supabase
-      .from("match_picks")
-      .select("event_id, player_id, selection")
-      .in("event_id", events.map((e) => e.id)),
     supabase
       .from("rounds")
       .select("id, jackpot_cents")
@@ -169,6 +199,13 @@ export async function scoreRound(supabase: Supabase, roundId: string): Promise<b
       .eq("status", "completed")
       .neq("id", roundId),
   ]);
+  const playerIds = (enrollments ?? []).map((e) => e.player_id);
+
+  const scoring =
+    round.pool.sport === "f1"
+      ? await f1Points(supabase, events.map((e) => e.id), playerIds)
+      : await matchPoints(supabase, events, playerIds);
+  if (!scoring) return false;
 
   // Jackpot balance before this round, to pay a perfect-round bonus.
   const { data: previousBonuses } = await supabase
@@ -180,25 +217,22 @@ export async function scoreRound(supabase: Supabase, roundId: string): Promise<b
     (previousRounds ?? []).reduce((acc, r) => acc + (r.jackpot_cents ?? 0), 0) -
     (previousBonuses ?? []).reduce((acc, r) => acc + r.bonus_cents, 0);
 
-  const scored = events.map((e) => ({ id: e.id, result: e.result as MatchResult }));
-  const entries = (enrollments ?? []).map(({ player_id }) => {
-    const mine = Object.fromEntries(
-      (picks ?? []).filter((p) => p.player_id === player_id).map((p) => [p.event_id, p.selection]),
-    );
-    return { profileId: player_id, points: scoreMatchPicks(scored, mine) };
+  const entries = playerIds.map((id) => ({ profileId: id, points: scoring.points.get(id) ?? 0 }));
+  const settlement = settleRound(entries, {
+    entryFeeCents: round.pool.entry_fee_cents,
+    maxPoints: scoring.maxPoints,
   });
-
-  const maxPoints = scored.filter((e) => e.result !== "void").length;
-  const settlement = settleRound(entries, { entryFeeCents: round.pool.entry_fee_cents, maxPoints });
   const bonus = perfectRoundBonus(jackpotBalance, settlement.perfectIds.length);
   const positions = new Map<string, number>();
   for (const group of rankEntries(entries)) for (const id of group.profileIds) positions.set(id, group.from);
 
-  const periodId = await settlementPeriodFor(
-    supabase,
-    round.pool_id,
-    roundFinishedAt(round.pool.sport, events.map((e) => new Date(e.starts_at))),
-  );
+  const periodId =
+    round.settlement_period_id ??
+    (await settlementPeriodFor(
+      supabase,
+      round.pool_id,
+      roundFinishedAt(round.pool.sport, events.map((e) => new Date(e.starts_at))),
+    ));
 
   const { error: deleteError } = await supabase.from("round_results").delete().eq("round_id", roundId);
   if (deleteError) throw new Error(deleteError.message);
@@ -225,6 +259,58 @@ export async function scoreRound(supabase: Supabase, roundId: string): Promise<b
     .eq("id", roundId);
   if (roundError) throw new Error(roundError.message);
   return true;
+}
+
+interface RoundPoints {
+  points: Map<string, number>;
+  /** Points of a perfect round. */
+  maxPoints: number;
+}
+
+/** Liga MX / NFL: null until every match has a result. */
+async function matchPoints(
+  supabase: Supabase,
+  events: { id: string; result: string | null }[],
+  playerIds: string[],
+): Promise<RoundPoints | null> {
+  if (events.some((e) => e.result === null)) return null;
+  const { data: picks } = await supabase
+    .from("match_picks")
+    .select("event_id, player_id, selection")
+    .in("event_id", events.map((e) => e.id));
+
+  const scored = events.map((e) => ({ id: e.id, result: e.result as MatchResult }));
+  const points = new Map(
+    playerIds.map((id) => {
+      const mine = Object.fromEntries(
+        (picks ?? []).filter((p) => p.player_id === id).map((p) => [p.event_id, p.selection]),
+      );
+      return [id, scoreMatchPicks(scored, mine)];
+    }),
+  );
+  return { points, maxPoints: scored.filter((e) => e.result !== "void").length };
+}
+
+/** F1: null until every race of the round has an official classification down to P10. */
+async function f1Points(supabase: Supabase, eventIds: string[], playerIds: string[]): Promise<RoundPoints | null> {
+  const [{ data: classification }, { data: picks }] = await Promise.all([
+    supabase.from("f1_classification").select("event_id, position, driver_id").in("event_id", eventIds),
+    supabase.from("f1_picks").select("event_id, player_id, position, driver_id").in("event_id", eventIds),
+  ]);
+
+  const order = (rows: { position: number; driver_id: string }[]) =>
+    orderByPosition(rows.map((r) => ({ position: r.position, driverId: r.driver_id })));
+
+  const points = new Map(playerIds.map((id) => [id, 0]));
+  for (const eventId of eventIds) {
+    const official = order((classification ?? []).filter((c) => c.event_id === eventId));
+    if (official.some((d) => d === null)) return null;
+    for (const id of playerIds) {
+      const pick = order((picks ?? []).filter((p) => p.event_id === eventId && p.player_id === id));
+      points.set(id, points.get(id)! + scoreF1Pick(pick, official as string[]));
+    }
+  }
+  return { points, maxPoints: F1_PICK_POSITIONS * eventIds.length };
 }
 
 /** The pool's first open settlement period after the round finished, created if needed. */

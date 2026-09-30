@@ -1,8 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { MatchResult } from "@/domain";
+import { F1_PICK_POSITIONS, validateF1Pick, type MatchResult } from "@/domain";
 import { canManagePool } from "@/lib/dal";
+import { f1DriverIds, importF1Season, saveF1Classification } from "@/lib/f1";
+import {
+  fetchF1Classification,
+  fetchF1Season,
+  parseF1ExternalId,
+  type F1DriverInfo,
+  type F1SeasonData,
+} from "@/lib/jolpica";
 import { lockTimes, scoreRound, type NewEvent } from "@/lib/rounds";
 import { createClient } from "@/lib/supabase/server";
 
@@ -163,4 +171,168 @@ export async function saveResults(poolId: string, roundId: string, matches: Matc
       ? `Resultados guardados y jornada calificada.`
       : `${updated} resultados guardados. Faltan partidos por terminar.`,
   };
+}
+
+/** The server couldn't reach Jolpica: the admin's browser fetches it and calls again with the data. */
+export type F1ActionResult = ActionResult | { ok: false; message: string; fetchFailed: true };
+
+const isDate = (value: unknown) => !Number.isNaN(new Date(value as string).getTime());
+
+function validSeason(data: unknown, season: string): data is F1SeasonData {
+  const d = data as F1SeasonData;
+  return (
+    d?.season === season &&
+    Array.isArray(d.races) &&
+    d.races.length <= 40 &&
+    d.races.every(
+      (r) =>
+        Number.isInteger(r?.round) &&
+        typeof r.place === "string" &&
+        isDate(r.raceStart) &&
+        (r.sprintStart === null || isDate(r.sprintStart)),
+    ) &&
+    Array.isArray(d.drivers) &&
+    d.drivers.length <= 60 &&
+    d.drivers.every(validDriver)
+  );
+}
+
+function validDriver(d: unknown): d is F1DriverInfo {
+  const driver = d as F1DriverInfo;
+  return (
+    typeof driver?.code === "string" &&
+    driver.code.length <= 5 &&
+    typeof driver.name === "string" &&
+    (driver.team === null || typeof driver.team === "string")
+  );
+}
+
+async function f1Pool(poolId: string) {
+  const supabase = await createClient();
+  const { data: pool } = await supabase.from("pools").select("sport, season").eq("id", poolId).single();
+  return { supabase, season: pool?.sport === "f1" ? pool.season : null };
+}
+
+/** Loads the season's calendar (Sprints included) and drivers from Jolpica. */
+export async function loadF1Season(poolId: string, fromBrowser?: F1SeasonData): Promise<F1ActionResult> {
+  if (!(await canManagePool(poolId))) return { ok: false, message: "No tienes permiso para esta quiniela." };
+  const { supabase, season } = await f1Pool(poolId);
+  if (!season) return { ok: false, message: "Esta quiniela no es de F1." };
+
+  let data = fromBrowser;
+  if (!data) {
+    try {
+      data = await fetchF1Season(season);
+    } catch (e) {
+      return { ok: false, message: (e as Error).message, fetchFailed: true };
+    }
+  } else if (!validSeason(data, season)) {
+    return { ok: false, message: "Los datos del calendario no son válidos." };
+  }
+
+  try {
+    const result = await importF1Season(supabase, poolId, {
+      ...data,
+      races: data.races.map((r) => ({
+        ...r,
+        raceStart: new Date(r.raceStart),
+        sprintStart: r.sprintStart && new Date(r.sprintStart),
+      })),
+    });
+    revalidatePath(`/quinielas/${poolId}`, "layout");
+    return {
+      ok: true,
+      message:
+        `${result.created} jornadas nuevas, ${result.updated} actualizadas, ${result.drivers} pilotos activos.` +
+        (result.skipped ? ` ${result.skipped} carreras ya corridas no se crearon (van con la importación de la temporada).` : ""),
+    };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+/** Imports a round's official classification from Jolpica and scores the round. */
+export async function importF1Results(
+  poolId: string,
+  roundId: string,
+  fromBrowser?: F1DriverInfo[],
+): Promise<F1ActionResult> {
+  if (!(await canManagePool(poolId))) return { ok: false, message: "No tienes permiso para esta quiniela." };
+  const { supabase, season } = await f1Pool(poolId);
+  if (!season) return { ok: false, message: "Esta quiniela no es de F1." };
+
+  const { data: event } = await supabase
+    .from("events")
+    .select("external_id, round:rounds!inner(pool_id)")
+    .eq("round_id", roundId)
+    .eq("round.pool_id", poolId)
+    .limit(1)
+    .maybeSingle();
+  const race = event?.external_id ? parseF1ExternalId(event.external_id) : null;
+  if (!race) return { ok: false, message: "Esta jornada no está ligada a una carrera de Jolpica." };
+
+  let classification = fromBrowser ?? null;
+  if (!classification) {
+    try {
+      classification = await fetchF1Classification(race.season, race.raceRound, race.kind);
+    } catch (e) {
+      return { ok: false, message: (e as Error).message, fetchFailed: true };
+    }
+  } else if (!Array.isArray(classification) || classification.length > 30 || !classification.every(validDriver)) {
+    return { ok: false, message: "La clasificación no es válida." };
+  }
+  if (!classification) return { ok: false, message: "Jolpica todavía no tiene la clasificación de esta carrera." };
+
+  try {
+    const ids = await f1DriverIds(supabase, season, classification);
+    const scored = await saveF1Classification(supabase, roundId, ids);
+    revalidatePath(`/quinielas/${poolId}`, "layout");
+    const podium = classification.slice(0, 3).map((d) => d.code).join(", ");
+    return { ok: true, message: `Podio ${podium}. ${scored ? "Jornada calificada." : "Clasificación guardada."}` };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+/** Official P1–P10 entered by hand (Jolpica down or late) and scores the round. */
+export async function saveManualClassification(
+  poolId: string,
+  roundId: string,
+  driverIds: (string | null)[],
+): Promise<ActionResult> {
+  if (!(await canManagePool(poolId))) return { ok: false, message: "No tienes permiso para esta quiniela." };
+  if (
+    !Array.isArray(driverIds) ||
+    driverIds.length !== F1_PICK_POSITIONS ||
+    driverIds.some((d) => typeof d !== "string") ||
+    validateF1Pick(driverIds).length > 0
+  ) {
+    return { ok: false, message: "Llena P1 a P10 sin repetir pilotos." };
+  }
+
+  const supabase = await createClient();
+  const { data: round } = await supabase.from("rounds").select("id").eq("id", roundId).eq("pool_id", poolId).maybeSingle();
+  if (!round) return { ok: false, message: "Jornada no encontrada." };
+  try {
+    const scored = await saveF1Classification(supabase, roundId, driverIds as string[]);
+    revalidatePath(`/quinielas/${poolId}`, "layout");
+    return { ok: true, message: scored ? "Resultado guardado y jornada calificada." : "Resultado guardado." };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+/** Shows or hides a driver in the pick screen (stand-ins, drivers replaced mid-season). */
+export async function setDriverActive(poolId: string, driverId: string, active: boolean): Promise<ActionResult> {
+  if (!(await canManagePool(poolId))) return { ok: false, message: "No tienes permiso para esta quiniela." };
+  const { supabase, season } = await f1Pool(poolId);
+  if (!season) return { ok: false, message: "Esta quiniela no es de F1." };
+  const { error } = await supabase
+    .from("f1_drivers")
+    .update({ active: Boolean(active) })
+    .eq("id", driverId)
+    .eq("season", season);
+  if (error) return { ok: false, message: "No se pudo guardar." };
+  revalidatePath(`/quinielas/${poolId}`, "layout");
+  return { ok: true, message: active ? "Visible en los pics." : "Oculto en los pics." };
 }

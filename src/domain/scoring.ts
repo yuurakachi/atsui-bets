@@ -38,6 +38,16 @@ export const F1_PICK_POSITIONS = 10;
 /** Driver ids by position: index 0 is P1. `null` = position left empty. */
 export type F1Pick = readonly (string | null)[];
 
+/** Rows of (1-based position, driver id) as an ordered list of `length`, null where empty. */
+export function orderByPosition(
+  rows: readonly { position: number; driverId: string }[],
+  length: number = F1_PICK_POSITIONS,
+): (string | null)[] {
+  const list: (string | null)[] = Array.from({ length }, () => null);
+  for (const row of rows) if (row.position >= 1 && row.position <= length) list[row.position - 1] = row.driverId;
+  return list;
+}
+
 /** Returns a list of problems; empty means the pick is valid. */
 export function validateF1Pick(pick: F1Pick): string[] {
   const errors: string[] = [];

@@ -26,7 +26,13 @@ export function UpcomingRoundCard({ round, poolName }: { round: UpcomingRound; p
       <p className="flex items-center justify-between gap-3">
         <span className="font-semibold">{round.name.replace(/^J(\d+)$/, "Jornada $1")}</span>
         <span className="text-sm font-medium">
-          {closed ? "Cerrada" : complete ? "✓ Pics listos" : `Te faltan ${round.missing} pics`}
+          {closed
+            ? "Cerrada"
+            : complete
+              ? "✓ Pics listos"
+              : round.sport === "f1"
+                ? `Llevas ${round.events - round.missing} de ${round.events}`
+                : `Te faltan ${round.missing} pics`}
         </span>
       </p>
       <p className="text-sm text-muted">

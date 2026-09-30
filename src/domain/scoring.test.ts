@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isValidNflPick, scoreF1Pick, scoreMatchPicks, validateF1Pick } from "./scoring";
+import { isValidNflPick, orderByPosition, scoreF1Pick, scoreMatchPicks, validateF1Pick } from "./scoring";
 
 describe("scoreMatchPicks", () => {
   const matches = [
@@ -45,5 +45,14 @@ describe("F1", () => {
     expect(validateF1Pick(["VER", "VER", null, null, null, null, null, null, null, null])).toHaveLength(1);
     expect(validateF1Pick(["VER"])).toHaveLength(1);
     expect(validateF1Pick(classification.slice(0, 10))).toEqual([]);
+  });
+
+  it("orders stored positions into a pick", () => {
+    expect(orderByPosition([{ position: 3, driverId: "LEC" }, { position: 1, driverId: "VER" }], 4)).toEqual([
+      "VER",
+      null,
+      "LEC",
+      null,
+    ]);
   });
 });

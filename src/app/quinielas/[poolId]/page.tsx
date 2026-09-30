@@ -1,10 +1,13 @@
 import Link from "next/link";
-import type { PrizeKind } from "@/domain";
+import { TIME_ZONE, type PrizeKind } from "@/domain";
 import { canManagePool, requirePlayer } from "@/lib/dal";
+import { getF1Calendar } from "@/lib/f1";
 import { formatMoney } from "@/lib/format";
 import { getPoolOverview } from "@/lib/pools";
 import { getUpcomingRounds } from "@/lib/rounds";
 import { UpcomingRoundCard } from "@/app/upcoming-round-card";
+
+const raceDate = new Intl.DateTimeFormat("es-MX", { timeZone: TIME_ZONE, weekday: "short", day: "numeric", month: "short" });
 
 const JACKPOT_LABEL: Record<PrizeKind, string> = {
   winner: "1°",
@@ -15,11 +18,14 @@ const JACKPOT_LABEL: Record<PrizeKind, string> = {
 export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId]">) {
   const { poolId } = await params;
   const player = await requirePlayer();
-  const [pool, manager, upcoming] = await Promise.all([
+  const [pool, manager, upcoming, calendar] = await Promise.all([
     getPoolOverview(poolId),
     canManagePool(poolId),
     getUpcomingRounds([poolId], player.id),
+    getF1Calendar(poolId),
   ]);
+  const shown = new Set(upcoming.map((r) => r.id));
+  const later = calendar.filter((r) => !shown.has(r.id));
   const rounds = [...pool.rounds].reverse();
 
   return (
@@ -45,6 +51,25 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
             <UpcomingRoundCard key={round.id} round={round} />
           ))}
         </section>
+      )}
+
+      {later.length > 0 && (
+        <details className="mt-3 rounded-xl border border-border bg-surface px-4 py-3">
+          <summary className="cursor-pointer text-sm font-medium">Próximas carreras ({later.length})</summary>
+          <ul className="mt-2 space-y-1 text-sm">
+            {later.map((round) => (
+              <li key={round.id}>
+                <Link
+                  href={`/quinielas/${pool.id}/jornadas/${round.id}`}
+                  className="flex justify-between gap-3 py-1 hover:text-accent"
+                >
+                  <span>{round.name}</span>
+                  <span className="text-muted">{raceDate.format(round.startsAt)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       <section className="mt-6 rounded-2xl bg-accent px-5 py-4 text-accent-foreground">

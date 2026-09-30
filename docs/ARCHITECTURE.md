@@ -21,6 +21,11 @@ Everything fits in the free tiers for a group of ~15 people.
 | Liga MX | ESPN public scoreboard API (`soccer/mex.1`) | Matchdays, kickoff times, results |
 | F1 | Jolpica (Ergast successor) | Calendar, sprint weekends, classified results |
 
+Jolpica is called from the server; if the server can't reach it, the admin screen
+fetches it from the admin's browser and hands the data to the server. The whole F1
+calendar (Sprints included) is loaded at once from the admin screen; only races still
+open for picks become new rounds, and past ones come from the season import.
+
 API-Football was the first choice for Liga MX, but its free plan doesn't cover the
 current season. ESPN's endpoint is unofficial and has blocked some server-side
 requests, so the admin screens can also fetch it from the admin's browser, and results
@@ -44,7 +49,7 @@ rounds              id, pool_id, name, kind (matchday | week | gp | sprint), ord
                     status, settlement_period_id, pot_cents, jackpot_cents
 events              id, round_id, external_id, name, home_team, away_team,
                     starts_at, lock_at, result (home | draw | away | void)
-f1_drivers          id, season, code, name, team
+f1_drivers          id, season, code, name, team, active
 f1_classification   event_id, position, driver_id
 match_picks         event_id, player_id, selection, entered_by, updated_at
 f1_picks            event_id, player_id, position (1–10), driver_id, entered_by, updated_at
@@ -66,6 +71,15 @@ Notes:
 - `round_results` and the round's pot/jackpot are derived from picks and results, but
   stored so history is fast to read and past seasons can be imported without picks.
 - Imported rounds from before the app existed have results but no events or picks.
+- **F1 rounds**: each race weekend is one `gp` round, plus a `sprint` round on Sprint
+  weekends. The ordinal is `2 × race round` for the GP and one less for the Sprint, so
+  rounds sort by date with the Sprint first. Each round has one event (the race) whose
+  `external_id` is `f1:<season>:<race round>:<gp|sprint>`, used to fetch its result.
+  `f1_drivers.active` hides drivers who aren't racing any more from the pick screen.
+- F1 picks and classifications are written through `save_f1_picks` and
+  `save_f1_classification`, which replace the whole ordered list in one transaction
+  (so a driver can move between positions) and run as the caller, under row level
+  security.
 
 ## Permissions (Row Level Security)
 
@@ -93,6 +107,18 @@ supabase/
   migrations/     SQL schema and RLS policies
 docs/             Rules and architecture
 ```
+
+## Scripts
+
+Run from a machine with the Supabase CLI linked; they write SQL to review before running it
+with `npx supabase db query --linked -f <file>`. Real family data lives in `data/private/`
+(git-ignored).
+
+| Script | Imports |
+|---|---|
+| `scripts/import-standings.ts` | A Liga MX / NFL season played before the app (points per round) |
+| `scripts/import-round.ts` | One Liga MX / NFL round played outside the app, with picks |
+| `scripts/import-f1-season.ts` | The F1 season before the app: pool, players, sub-admin, every raced round (Sprints included) with dates, prizes, perfect-round bonuses and settlement periods, checked against the family's jackpot |
 
 ## Screens
 

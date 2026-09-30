@@ -37,8 +37,9 @@ Details:
 - **NFL**: an NFL game that ends in a tie awards no points. No tiebreakers.
 - **F1**: a driver can be picked only once per round. Results follow the official
   classification; if it changes afterwards (e.g. a disqualification) an admin re-scores
-  the round. A Sprint weekend produces **two rounds** (Sprint and GP), each paid and
-  scored independently.
+  the round, as long as the round's money hasn't been settled yet (§6). Once settled,
+  the result stands. A Sprint weekend produces **two rounds** (Sprint and GP), each paid
+  and scored independently.
 
 ## 3. Pick deadlines
 
@@ -131,6 +132,7 @@ are paid out, and the rest is kept for the pool's jackpot.
   - **Net**: won − owes (positive = collects, negative = pays)
 - The pool's sub-admin (or the admin) marks the period as settled; the action is
   recorded in the audit log.
+- A settled round is final: its result can no longer be corrected or re-scored.
 
 ## 7. Roles
 

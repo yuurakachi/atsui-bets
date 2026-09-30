@@ -167,6 +167,7 @@ export type Database = {
       }
       f1_drivers: {
         Row: {
+          active: boolean
           code: string
           id: string
           name: string
@@ -174,6 +175,7 @@ export type Database = {
           team: string | null
         }
         Insert: {
+          active?: boolean
           code: string
           id?: string
           name: string
@@ -181,6 +183,7 @@ export type Database = {
           team?: string | null
         }
         Update: {
+          active?: boolean
           code?: string
           id?: string
           name?: string
@@ -532,6 +535,10 @@ export type Database = {
         Args: { p_entered_by: string; p_event_id: string; p_player_id: string }
         Returns: boolean
       }
+      check_f1_order: {
+        Args: { p_driver_ids: string[]; p_event_id: string; p_positions: number }
+        Returns: undefined
+      }
       current_player_id: { Args: never; Returns: string }
       event_is_locked: { Args: { p_event_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
@@ -543,6 +550,14 @@ export type Database = {
       is_pool_admin: { Args: { p_pool_id: string }; Returns: boolean }
       pool_of_event: { Args: { p_event_id: string }; Returns: string }
       pool_of_round: { Args: { p_round_id: string }; Returns: string }
+      save_f1_classification: {
+        Args: { p_driver_ids: string[]; p_event_id: string }
+        Returns: undefined
+      }
+      save_f1_picks: {
+        Args: { p_driver_ids: string[]; p_event_id: string; p_player_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       match_outcome: "home" | "draw" | "away"
