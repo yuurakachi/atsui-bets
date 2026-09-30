@@ -76,8 +76,9 @@ npm run lint
 - [x] Liga MX end to end: import of the current season, fixtures from ESPN, picks,
       automatic scoring, standings
 - [x] Monthly settlement per pool
-- [ ] Admin screen for players and emails
+- [x] Admin screen for players and emails
+- [x] "Who's missing" WhatsApp reminders
 - [x] Formula 1 with Sprint weekends: calendar and results from Jolpica, P1–P10 picks,
       import of the current season
 - [ ] NFL (replacing Yahoo Fantasy)
-- [ ] Push notifications and "who's missing" WhatsApp reminders
+- [ ] Push notifications

@@ -1,0 +1,179 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { TIME_ZONE, type MatchOutcome, type MatchResult, type Sport } from "@/domain";
+import { fetchMatches, type EspnMatch } from "@/lib/espn";
+import { liveOutcome } from "@/lib/live";
+
+const LETTER = { home: "L", draw: "E", away: "V" } as const;
+const POLL_MS = 60_000;
+/** Keep polling a match that should have started but ESPN still shows as upcoming. */
+const START_GRACE_MS = 10 * 60_000;
+
+interface GridEvent {
+  id: string;
+  number: number;
+  externalId: string | null;
+  home: string;
+  away: string;
+  startsAt: string;
+  /** Official result saved by an admin. */
+  result: MatchResult | null;
+}
+
+interface Props {
+  sport: Sport;
+  events: GridEvent[];
+  players: { id: string; name: string }[];
+  picks: { eventId: string; playerId: string; selection: MatchOutcome }[];
+  currentPlayerId: string;
+}
+
+const day = (date: Date) => date.toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+const nextDay = (iso: string) => {
+  const date = new Date(`${iso}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+};
+
+/** Everyone's picks, marked against official results or live ESPN scores. */
+export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }: Props) {
+  const [live, setLive] = useState<Map<string, EspnMatch>>(new Map());
+
+  useEffect(() => {
+    const pending = events.filter((e) => !e.result && e.externalId);
+    if (pending.length === 0) return;
+    const dates = pending.map((e) => day(new Date(e.startsAt))).sort();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
+    let matches = new Map<string, EspnMatch>();
+
+    const stillPlaying = () =>
+      pending.some(
+        (e) =>
+          matches.get(e.externalId!)?.state !== "post" &&
+          new Date(e.startsAt).getTime() <= Date.now() + START_GRACE_MS,
+      );
+
+    // Polls while a match is on; paused while the tab is hidden.
+    const tick = async () => {
+      clearTimeout(timer);
+      try {
+        const found = await fetchMatches(sport, dates[0], nextDay(dates.at(-1)!));
+        matches = new Map(found.map((m) => [m.externalId, m]));
+        if (!stopped) setLive(matches);
+      } catch {
+        // ESPN unavailable: keep showing what we have.
+      }
+      if (!stopped && !document.hidden && stillPlaying()) timer = setTimeout(tick, POLL_MS);
+    };
+    const onVisible = () => {
+      if (!document.hidden && stillPlaying()) void tick();
+      else clearTimeout(timer);
+    };
+
+    void tick();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [sport, events]);
+
+  const outcomes = new Map(events.map((e) => [e.id, liveOutcome(e.result, e.externalId ? live.get(e.externalId) : undefined)]));
+  const pickOf = new Map(picks.map((p) => [`${p.playerId}:${p.eventId}`, p.selection]));
+  const isHit = (playerId: string, eventId: string) => {
+    const known = outcomes.get(eventId);
+    const pick = pickOf.get(`${playerId}:${eventId}`);
+    return !!known && !!pick && known.outcome !== "void" && known.outcome === pick;
+  };
+
+  const anyKnown = [...outcomes.values()].some(Boolean);
+  const anyLive = [...outcomes.values()].some((o) => o && !o.final);
+  const rows = players
+    .map((player) => ({ ...player, points: events.filter((e) => isHit(player.id, e.id)).length }))
+    .sort((a, b) => (anyKnown ? b.points - a.points : 0) || a.name.localeCompare(b.name));
+  const columns = `4.5rem repeat(${events.length}, minmax(1.375rem, 1fr)) 1.75rem`;
+
+  return (
+    <section className="mt-8">
+      <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wide text-muted uppercase">
+        Pics de todos
+        {anyLive && (
+          <span className="flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[0.65rem] font-bold text-red-500">
+            <span className="size-1.5 animate-pulse rounded-full bg-red-500" />
+            EN VIVO
+          </span>
+        )}
+      </h2>
+      <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-surface">
+        <div className="min-w-fit">
+          <div className="grid gap-0.5 border-b border-border px-2 py-2 text-xs font-medium text-muted" style={{ gridTemplateColumns: columns }}>
+            <span>Jugador</span>
+            {events.map((e) => (
+              <span key={e.id} className="text-center">
+                {e.number}
+              </span>
+            ))}
+            <span className="text-right">Pts</span>
+          </div>
+          {rows.map((player) => (
+            <div
+              key={player.id}
+              className={`grid items-center gap-0.5 border-b border-border px-2 py-1.5 text-sm last:border-0 ${
+                player.id === currentPlayerId ? "bg-accent/10" : ""
+              }`}
+              style={{ gridTemplateColumns: columns }}
+            >
+              <span className="truncate font-medium">{player.name}</span>
+              {events.map((e) => {
+                const pick = pickOf.get(`${player.id}:${e.id}`);
+                const known = outcomes.get(e.id);
+                const hit = isHit(player.id, e.id);
+                const style = !pick || !known
+                  ? ""
+                  : hit
+                    ? known.final
+                      ? "bg-accent font-bold text-accent-foreground"
+                      : "font-bold text-accent ring-1 ring-accent ring-inset"
+                    : known.final
+                      ? "text-muted line-through"
+                      : "text-muted";
+                return (
+                  <span key={e.id} className={`rounded text-center font-mono text-xs leading-6 ${style}`}>
+                    {pick ? LETTER[pick] : "·"}
+                  </span>
+                );
+              })}
+              <span className="text-right font-semibold tabular-nums">{player.points}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {anyKnown && (
+        <p className="mt-2 text-xs text-muted">
+          Relleno: partido terminado. Con borde: va ganando en vivo. Los puntos oficiales quedan cuando el
+          admin actualiza resultados.
+        </p>
+      )}
+      <ol className="mt-3 grid gap-x-4 gap-y-0.5 text-xs text-muted sm:grid-cols-2">
+        {events.map((e) => {
+          const match = e.externalId ? live.get(e.externalId) : undefined;
+          const known = outcomes.get(e.id);
+          return (
+            <li key={e.id}>
+              {e.number}. {e.home}
+              {match?.score ? ` ${match.score.home}–${match.score.away} ` : " vs "}
+              {e.away}
+              {match?.state === "in" && <span className="font-medium text-red-500"> · {match.clock}</span>}
+              {known?.final && (
+                <span className="text-foreground"> · {known.outcome === "void" ? "no cuenta" : LETTER[known.outcome]}</span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}

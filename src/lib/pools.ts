@@ -30,6 +30,9 @@ export interface SeasonRow {
   points: number;
   position: number;
   wonCents: Cents;
+  /** Entry fees for every completed round: everyone enrolled pays every round. */
+  paidCents: Cents;
+  netCents: Cents;
   /** Jackpot prize this player would take if the season ended today. */
   jackpotPrize: { kind: PrizeKind; cents: Cents } | null;
 }
@@ -49,7 +52,7 @@ export const getPoolOverview = cache(async (poolId: string): Promise<PoolOvervie
 
   const { data: pool } = await supabase
     .from("pools")
-    .select("id, name, sport, jackpot_opening_cents")
+    .select("id, name, sport, entry_fee_cents, jackpot_opening_cents")
     .eq("id", poolId)
     .maybeSingle();
   if (!pool) notFound();
@@ -118,15 +121,21 @@ export const getPoolOverview = cache(async (poolId: string): Promise<PoolOvervie
     }
   }
 
+  const paidCents = poolRounds.length * pool.entry_fee_cents;
   const season: SeasonRow[] = rankEntries(entries).flatMap((group) =>
-    group.profileIds.map((id) => ({
-      playerId: id,
-      name: players.get(id) ?? "?",
-      points: group.points,
-      position: group.from,
-      wonCents: totals.get(id)!.wonCents,
-      jackpotPrize: jackpotPrizes.get(id) ?? null,
-    })),
+    group.profileIds.map((id) => {
+      const wonCents = totals.get(id)!.wonCents;
+      return {
+        playerId: id,
+        name: players.get(id) ?? "?",
+        points: group.points,
+        position: group.from,
+        wonCents,
+        paidCents,
+        netCents: wonCents - paidCents,
+        jackpotPrize: jackpotPrizes.get(id) ?? null,
+      };
+    }),
   );
   season.sort((a, b) => a.position - b.position || a.name.localeCompare(b.name));
 

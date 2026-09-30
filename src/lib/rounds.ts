@@ -42,6 +42,7 @@ export interface RoundDetail {
   status: "scheduled" | "completed" | "cancelled";
   events: {
     id: string;
+    externalId: string | null;
     home: string;
     away: string;
     startsAt: Date;
@@ -66,7 +67,7 @@ export const getRoundDetail = cache(async (poolId: string, roundId: string): Pro
   const [{ data: events }, { data: enrollments }] = await Promise.all([
     supabase
       .from("events")
-      .select("id, home_team, away_team, starts_at, lock_at, result")
+      .select("id, external_id, home_team, away_team, starts_at, lock_at, result")
       .eq("round_id", roundId)
       .order("starts_at"),
     supabase.from("enrollments").select("player:players(id, display_name, nickname)").eq("pool_id", poolId),
@@ -84,6 +85,7 @@ export const getRoundDetail = cache(async (poolId: string, roundId: string): Pro
     status: round.status,
     events: (events ?? []).map((e) => ({
       id: e.id,
+      externalId: e.external_id,
       home: e.home_team ?? "?",
       away: e.away_team ?? "?",
       startsAt: new Date(e.starts_at),
@@ -165,6 +167,67 @@ export const getUpcomingRounds = cache(async (poolIds: string[], playerId: strin
   }
   return upcoming.filter((r) => r.closed || r.firstLockAt.getTime() <= nextDeadline.get(r.poolId)! + UPCOMING_WINDOW_MS);
 });
+
+export interface OpenRoundProgress {
+  id: string;
+  name: string;
+  firstLockAt: Date;
+  openEvents: number;
+  players: number;
+  missing: { name: string; count: number }[];
+}
+
+/**
+ * Open rounds of a pool with who still has open picks left. Needs a pool admin's
+ * session: row level security hides other players' picks before the lock.
+ */
+export async function getOpenRoundsProgress(poolId: string): Promise<OpenRoundProgress[]> {
+  const supabase = await createClient();
+  const [{ data: rounds }, { data: enrollments }] = await Promise.all([
+    supabase
+      .from("rounds")
+      .select("id, name, ordinal, pool:pools(sport), events(id, lock_at)")
+      .eq("pool_id", poolId)
+      .eq("status", "scheduled")
+      .order("ordinal"),
+    supabase.from("enrollments").select("player:players(id, display_name, nickname)").eq("pool_id", poolId),
+  ]);
+  const players = (enrollments ?? [])
+    .flatMap((e) => (e.player ? [{ id: e.player.id, name: playerName(e.player) }] : []))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const now = Date.now();
+  let open = (rounds ?? [])
+    .map((r) => ({ ...r, events: r.events.filter((e) => new Date(e.lock_at).getTime() > now) }))
+    .filter((r) => r.events.length > 0);
+  const firstLock = (r: (typeof open)[number]) => Math.min(...r.events.map((e) => new Date(e.lock_at).getTime()));
+  // F1 loads the whole season: only chase the next weekend.
+  const nextDeadline = Math.min(...open.map(firstLock));
+  open = open.filter((r) => firstLock(r) <= nextDeadline + UPCOMING_WINDOW_MS);
+
+  const f1 = rounds?.[0]?.pool?.sport === "f1";
+  const perEvent = f1 ? F1_PICK_POSITIONS : 1;
+  const eventIds = open.flatMap((r) => r.events.map((e) => e.id));
+  const { data: picks } = eventIds.length
+    ? await supabase.from(f1 ? "f1_picks" : "match_picks").select("event_id, player_id").in("event_id", eventIds)
+    : { data: [] };
+  const picked = new Map<string, number>();
+  for (const p of picks ?? []) picked.set(`${p.player_id}:${p.event_id}`, (picked.get(`${p.player_id}:${p.event_id}`) ?? 0) + 1);
+
+  return open.map((r) => ({
+    id: r.id,
+    name: r.name,
+    firstLockAt: new Date(firstLock(r)),
+    openEvents: r.events.length * perEvent,
+    players: players.length,
+    missing: players
+      .map((p) => ({
+        name: p.name,
+        count: r.events.reduce((acc, e) => acc + perEvent - Math.min(perEvent, picked.get(`${p.id}:${e.id}`) ?? 0), 0),
+      }))
+      .filter((p) => p.count > 0),
+  }));
+}
 
 /**
  * Scores a round once every event has a result: points, weekly prize, jackpot share,

@@ -127,7 +127,9 @@ with `npx supabase db query --linked -f <file>`. Real family data lives in `data
 3. **Round** — everyone's picks (after lock), live results, standings and prize leaders.
 4. **Season** — season standings and current jackpot.
 5. **Settlement** (per pool) — monthly settlement: owes / won / net per person.
-6. **Admin** — enrollments, payments, on-behalf picks, results, data import, audit log.
+6. **Admin** — enrollments, payments, on-behalf picks, results, data import, audit log,
+   and a ready-to-send WhatsApp reminder naming who still has open picks (never what
+   anyone picked).
 
 ## Delivery plan
 
@@ -136,4 +138,4 @@ with `npx supabase db query --linked -f <file>`. Real family data lives in `data
 3. F1, including sprint weekends.
 4. Money: payments, monthly settlement, jackpots.
 5. NFL (replacing Yahoo Fantasy).
-6. Polish: push notifications, "remind who's missing" WhatsApp message, stats.
+6. Polish: push notifications, stats.
