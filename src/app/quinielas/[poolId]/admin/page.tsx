@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { TIME_ZONE } from "@/domain";
+import { TIME_ZONE, type MatchResult } from "@/domain";
 import { canManagePool } from "@/lib/dal";
 import { getF1Drivers } from "@/lib/f1";
 import { playerName } from "@/lib/format";
@@ -26,7 +26,7 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
     supabase.from("pools").select("id, name, sport, season").eq("id", poolId).single(),
     supabase
       .from("rounds")
-      .select("id, name, ordinal, status, events(id, external_id, starts_at), period:settlement_periods(settled_at)")
+      .select("id, name, ordinal, status, events(id, external_id, starts_at, home_team, away_team, result), period:settlement_periods(settled_at)")
       .eq("pool_id", poolId)
       .order("ordinal"),
     supabase
@@ -44,6 +44,17 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
   const nextName = nfl ? `Semana ${nextOrdinal}` : `J${nextOrdinal}`;
   const weekend = upcomingWeekend(new Date());
   const pending = (rounds ?? []).filter((r) => r.status === "scheduled" && r.events.length > 0);
+  // Matches already in a round can't be loaded again, unless they didn't count there
+  // (postponed): those wait here until they're played, and go in that week's round.
+  const allEvents = (rounds ?? []).flatMap((r) => r.events.map((e) => ({ ...e, round: r.name })));
+  const taken = Object.fromEntries(
+    allEvents.flatMap((e) => (e.external_id && e.result !== "void" ? [[e.external_id, e.round] as const] : [])),
+  );
+  const postponed = allEvents.flatMap((e) =>
+    e.external_id && e.result === "void" && !taken[e.external_id]
+      ? [{ externalId: e.external_id, home: e.home_team ?? "?", away: e.away_team ?? "?", round: e.round }]
+      : [],
+  );
   const players = (enrollments ?? [])
     .flatMap((e) => (e.player ? [e.player] : []))
     .map((p) => ({ id: p.id, nickname: playerName(p), email: p.email, signedIn: p.user_id !== null }))
@@ -121,6 +132,8 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
                 from={weekend.from}
                 to={weekend.to}
                 nflWeek={nfl ? { season: pool.season, week: nextOrdinal } : undefined}
+                taken={taken}
+                postponed={nfl ? [] : postponed}
               />
             </>
           )}
@@ -143,6 +156,13 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
                     roundId={round.id}
                     name={round.name}
                     externalIds={round.events.flatMap((e) => (e.external_id ? [e.external_id] : []))}
+                    events={[...round.events]
+                      .sort((x, y) => x.starts_at.localeCompare(y.starts_at))
+                      .map((e) => ({
+                        id: e.id,
+                        label: nfl ? `${e.away_team} @ ${e.home_team}` : `${e.home_team} vs ${e.away_team}`,
+                        result: e.result as MatchResult | null,
+                      }))}
                     from={isoDay(new Date(Math.min(...starts) - oneDay))}
                     to={isoDay(new Date(Math.max(...starts) + oneDay))}
                   />

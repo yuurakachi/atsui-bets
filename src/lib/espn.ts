@@ -124,6 +124,23 @@ export async function fetchMatches(sport: Sport, from: string, to: string): Prom
   return [...byId.values()].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
+/**
+ * One match by its id ("espn:123"), wherever ESPN has it scheduled now. Used to find
+ * the new date of a postponed match. null if ESPN doesn't know it.
+ */
+export async function fetchMatch(sport: Sport, externalId: string): Promise<EspnMatch | null> {
+  const path = LEAGUE_PATH[sport];
+  const id = externalId.replace(/^espn:/, "");
+  if (!path || !/^\d+$/.test(id)) return null;
+  const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/summary?event=${id}`);
+  if (!response.ok) return null;
+  const header = ((await response.json()) as { header?: { competitions?: (EspnEvent["competitions"][number] & { date?: string })[] } })
+    .header;
+  const competition = header?.competitions?.[0];
+  if (!competition?.date) return null;
+  return toMatch({ id, date: competition.date, competitions: [competition] }, sport);
+}
+
 export const NFL_REGULAR_SEASON_WEEKS = 18;
 
 /**

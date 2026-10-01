@@ -128,11 +128,13 @@ export const getUpcomingRounds = cache(async (poolIds: string[], playerId: strin
   const supabase = await createClient();
   const { data: rounds } = await supabase
     .from("rounds")
-    .select("id, pool_id, name, ordinal, pool:pools(sport), events(id, lock_at)")
+    .select("id, pool_id, name, ordinal, pool:pools(sport), events(id, lock_at, result)")
     .in("pool_id", poolIds)
     .eq("status", "scheduled")
     .order("ordinal");
 
+  // A match that doesn't count (postponed) needs no pick.
+  for (const r of rounds ?? []) r.events = r.events.filter((e) => e.result !== "void");
   const eventIds = (rounds ?? []).flatMap((r) => r.events.map((e) => e.id));
   const [{ data: matchPicks }, { data: f1Picks }] = eventIds.length
     ? await Promise.all([
@@ -189,7 +191,7 @@ export async function getOpenRoundsProgress(poolId: string): Promise<OpenRoundPr
   const [{ data: rounds }, { data: enrollments }] = await Promise.all([
     supabase
       .from("rounds")
-      .select("id, name, ordinal, pool:pools(sport), events(id, lock_at)")
+      .select("id, name, ordinal, pool:pools(sport), events(id, lock_at, result)")
       .eq("pool_id", poolId)
       .eq("status", "scheduled")
       .order("ordinal"),
@@ -201,7 +203,7 @@ export async function getOpenRoundsProgress(poolId: string): Promise<OpenRoundPr
 
   const now = Date.now();
   let open = (rounds ?? [])
-    .map((r) => ({ ...r, events: r.events.filter((e) => new Date(e.lock_at).getTime() > now) }))
+    .map((r) => ({ ...r, events: r.events.filter((e) => e.result !== "void" && new Date(e.lock_at).getTime() > now) }))
     .filter((r) => r.events.length > 0);
   const firstLock = (r: (typeof open)[number]) => Math.min(...r.events.map((e) => new Date(e.lock_at).getTime()));
   // F1 loads the whole season: only chase the next weekend.

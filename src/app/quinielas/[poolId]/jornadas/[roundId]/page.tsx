@@ -54,6 +54,17 @@ export default async function RoundPage({ params }: PageProps<"/quinielas/[poolI
             : "Cada juego cierra 5 minutos antes de empezar; puedes cambiar tus pics hasta entonces."}
         </p>
 
+        {detail.events.some((e) => e.result === "void") && (
+          <p className="mt-3 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted">
+            No {detail.events.filter((e) => e.result === "void").length === 1 ? "cuenta" : "cuentan"} en esta jornada:{" "}
+            {detail.events
+              .filter((e) => e.result === "void")
+              .map((e) => `${e.home} vs ${e.away}`)
+              .join(", ")}
+            . Si se reprograma, entra en la jornada de la semana en que se juegue.
+          </p>
+        )}
+
         <div className="mt-6">
           {enrolled || manager ? (
             <PickForm
@@ -64,7 +75,7 @@ export default async function RoundPage({ params }: PageProps<"/quinielas/[poolI
               currentPlayerId={player.id}
               players={manager ? detail.players : undefined}
               picks={picks}
-              events={detail.events.map((e) => ({
+              events={detail.events.filter((e) => e.result !== "void").map((e) => ({
                 id: e.id,
                 home: e.home,
                 away: e.away,

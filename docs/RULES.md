@@ -33,7 +33,10 @@ Terminology:
 Details:
 
 - **Liga MX**: regular season only; the playoffs (*liguilla*) are not played.
-  A match postponed outside its matchday does not count (nobody scores it).
+  A postponed match does not count in its original matchday (nobody scores it there).
+  When it is rescheduled it joins the matchday of the week it is played, as one more
+  match: everyone picks it again and it scores like any other. That matchday locks, as
+  always, at 23:59 of the day before its first match, the rescheduled one included.
 - **NFL**: regular season only (weeks 1–18); the playoffs are not played. An NFL game
   that ends in a tie awards no points. No tiebreakers.
 - **F1**: a driver can be picked only once per round. Results follow the official
@@ -74,7 +77,8 @@ the weekly prize equally**.
 A participant who gets **every pick of a round right** wins **$1,000 MXN from the
 jackpot**, on top of the weekly prize.
 
-- Liga MX: every match of the matchday that counts (postponed matches are excluded).
+- Liga MX: every match of the matchday that counts (postponed matches are excluded;
+  a rescheduled match counts in the matchday it joins).
 - NFL: every game of the week that has a winner (ties and cancelled games are excluded).
 - F1: all ten positions exact.
 - If several people have a perfect round, each one gets $1,000. If the jackpot holds

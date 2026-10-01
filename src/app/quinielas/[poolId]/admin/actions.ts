@@ -61,6 +61,19 @@ export async function createRound(poolId: string, name: string, matches: MatchIn
     .limit(1)
     .maybeSingle();
 
+  // A match plays in one round only. One that didn't count where it was first loaded
+  // (postponed) may be loaded again in the round of the week it's played.
+  const { data: taken } = await supabase
+    .from("events")
+    .select("external_id, result, round:rounds!inner(name, pool_id)")
+    .eq("round.pool_id", poolId)
+    .in("external_id", matches.map((m) => m.externalId));
+  const repeated = (taken ?? []).find((e) => e.result !== "void");
+  if (repeated) {
+    const match = matches.find((m) => m.externalId === repeated.external_id)!;
+    return { ok: false, message: `${match.home} vs ${match.away} ya está en ${repeated.round.name}. Quítalo de la lista.` };
+  }
+
   const events: NewEvent[] = matches.map((m) => ({ ...m, startsAt: new Date(m.startsAt) }));
   const locks = lockTimes(pool.sport, events);
   // An NFL week can be loaded once it's under way: games lock one by one, and the ones
@@ -163,11 +176,13 @@ export async function saveResults(poolId: string, roundId: string, matches: Matc
   let updated = 0;
   for (const m of matches) {
     if (m.result === null) continue;
+    // A match marked as not counting stays that way until an admin says it counts again.
     const { data, error } = await supabase
       .from("events")
       .update({ result: m.result })
       .eq("round_id", roundId)
       .eq("external_id", m.externalId)
+      .or("result.is.null,result.neq.void")
       .select("id");
     if (error) return { ok: false, message: error.message };
     updated += data.length;
@@ -180,6 +195,49 @@ export async function saveResults(poolId: string, roundId: string, matches: Matc
     message: scored
       ? `Resultados guardados y jornada calificada.`
       : `${updated} resultados guardados. Faltan partidos por terminar.`,
+  };
+}
+
+/**
+ * Marks a match of a round still waiting for results as not counting (postponed), or
+ * undoes it. Scores the round if that was the last result missing.
+ */
+export async function setEventCounts(
+  poolId: string,
+  roundId: string,
+  eventId: string,
+  counts: boolean,
+): Promise<ActionResult> {
+  if (!(await canManagePool(poolId))) return { ok: false, message: "No tienes permiso para esta quiniela." };
+
+  const supabase = await createClient();
+  const { data: round } = await supabase
+    .from("rounds")
+    .select("id, status")
+    .eq("id", roundId)
+    .eq("pool_id", poolId)
+    .maybeSingle();
+  if (!round) return { ok: false, message: "Jornada no encontrada." };
+  if (round.status !== "scheduled") return { ok: false, message: "Esa jornada ya está calificada." };
+
+  const { data: updated, error } = await supabase
+    .from("events")
+    .update({ result: counts ? null : "void" })
+    .eq("id", eventId)
+    .eq("round_id", roundId)
+    .select("id");
+  if (error) return { ok: false, message: error.message };
+  if (!updated.length) return { ok: false, message: "Partido no encontrado." };
+
+  const scored = counts ? false : await scoreRound(supabase, roundId);
+  revalidatePath(`/quinielas/${poolId}`, "layout");
+  return {
+    ok: true,
+    message: counts
+      ? "El partido vuelve a contar."
+      : scored
+        ? "Marcado como no cuenta. Era el último pendiente: jornada calificada."
+        : "Marcado como no cuenta.",
   };
 }
 
