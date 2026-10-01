@@ -70,29 +70,29 @@ describe("perfectRoundBonus", () => {
 });
 
 describe("distributePrizes for the season jackpot", () => {
-  it("uses 50 / 35 / 15 for 1st, 7th and second-to-last", () => {
+  it("uses 70 / 20 / 10 for 1st, 7th and second-to-last", () => {
     const result = distributePrizes(10_000_00, entries([90, 80, 70, 60, 50, 40, 30, 20, 10]));
-    expect(result.wonCents.get("p01")).toBe(5_000_00);
-    expect(result.wonCents.get("p07")).toBe(3_500_00);
-    expect(result.wonCents.get("p08")).toBe(1_500_00);
+    expect(result.wonCents.get("p01")).toBe(7_000_00);
+    expect(result.wonCents.get("p07")).toBe(2_000_00);
+    expect(result.wonCents.get("p08")).toBe(1_000_00);
   });
 
   it("splits a prize when a tie spans its position", () => {
     // positions 6–8 tied
     const result = distributePrizes(1000_00, entries([15, 14, 13, 12, 11, 9, 9, 9, 7, 6, 5, 4]));
-    for (const id of ["p06", "p07", "p08"]) expect(result.wonCents.get(id)).toBe(116_66);
+    for (const id of ["p06", "p07", "p08"]) expect(result.wonCents.get(id)).toBe(66_66);
     expect(result.undistributedCents).toBe(2);
   });
 
   it("gives both prizes to a tie that spans 7th and second-to-last", () => {
     // 12 people, positions 6–12 tied: they share lucky seven and bobby
     const result = distributePrizes(1000_00, entries([9, 8, 8, 8, 8, 5, 5, 5, 5, 5, 5, 5]));
-    for (const id of ["p06", "p12"]) expect(result.wonCents.get(id)).toBe(50_00 + 21_42);
+    for (const id of ["p06", "p12"]) expect(result.wonCents.get(id)).toBe(28_57 + 14_28);
   });
 
   it("keeps a prize undistributed when its position doesn't exist", () => {
     const result = distributePrizes(1000_00, entries([3, 2, 1]));
     expect(result.awards.map((a) => a.kind)).toEqual(["winner", "bobby"]);
-    expect(result.undistributedCents).toBe(350_00);
+    expect(result.undistributedCents).toBe(200_00);
   });
 });

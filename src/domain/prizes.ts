@@ -17,9 +17,9 @@ interface PrizeRule {
 
 /** How the season jackpot is split. */
 export const JACKPOT_PRIZE_RULES: readonly PrizeRule[] = [
-  { kind: "winner", percent: 50, position: () => 1 },
-  { kind: "lucky_seven", percent: 35, position: () => 7 },
-  { kind: "bobby", percent: 15, position: (n) => n - 1 },
+  { kind: "winner", percent: 70, position: () => 1 },
+  { kind: "lucky_seven", percent: 20, position: () => 7 },
+  { kind: "bobby", percent: 10, position: (n) => n - 1 },
 ];
 
 export interface Award {
@@ -39,7 +39,7 @@ export interface Distribution {
 }
 
 /**
- * Splits `totalCents` 50 / 35 / 15 between 1st, 7th and second-to-last.
+ * Splits `totalCents` 70 / 20 / 10 between 1st, 7th and second-to-last.
  * Tied participants whose position range contains a prize position split that prize.
  */
 export function distributePrizes(totalCents: Cents, entries: readonly StandingEntry[]): Distribution {

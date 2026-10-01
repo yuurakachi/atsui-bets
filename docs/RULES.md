@@ -93,9 +93,9 @@ points over all rounds):
 
 | Prize | Position | Share of the jackpot |
 |---|---|---|
-| Winner | 1st | 50 % |
-| Lucky seven | 7th | 35 % |
-| Bobby | second-to-last (N − 1) | 15 % |
+| Winner | 1st | 70 % |
+| Lucky seven | 7th | 20 % |
+| Bobby | second-to-last (N − 1) | 10 % |
 
 ### Ties
 
@@ -105,9 +105,9 @@ contains several prize positions, they split the sum of those prizes.
 
 Examples with 15 participants:
 
-- Two people tied for the most points occupy positions 1–2 → they split the 50 %.
-- Three people tied at positions 6–8 → the range contains 7 → they split the 35 %.
-- Positions 13–15 tied → the range contains 14 (N − 1) → they split the 15 %.
+- Two people tied for the most points occupy positions 1–2 → they split the 70 %.
+- Three people tied at positions 6–8 → the range contains 7 → they split the 20 %.
+- Positions 13–15 tied → the range contains 14 (N − 1) → they split the 10 %.
 
 ## 6. Monthly settlement
 

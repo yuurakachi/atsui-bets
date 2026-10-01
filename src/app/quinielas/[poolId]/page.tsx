@@ -75,7 +75,7 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
       <section className="mt-6 rounded-2xl border-2 border-accent bg-surface px-5 py-4">
         <p className="text-sm font-medium text-muted">Acumulado de la temporada</p>
         <p className="font-display text-5xl leading-none font-bold text-accent tabular-nums">{formatMoney(pool.jackpotBalanceCents)}</p>
-        <p className="mt-1.5 text-sm text-muted">Se reparte al final: 1° 50 %, lucky 7 35 %, bobby 15 %.</p>
+        <p className="mt-1.5 text-sm text-muted">Se reparte al final: 1° 70 %, lucky 7 20 %, bobby 10 %.</p>
       </section>
 
       <Link
