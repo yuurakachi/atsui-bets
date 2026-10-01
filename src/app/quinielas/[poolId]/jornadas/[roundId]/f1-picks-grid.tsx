@@ -57,7 +57,7 @@ export function F1PicksGrid({ round, currentPlayerId }: { round: F1RoundDetail; 
             <div
               key={row.id}
               className={`grid items-center gap-0.5 border-b border-border px-2 py-1.5 last:border-0 ${
-                row.id === currentPlayerId ? "bg-accent/10" : ""
+                row.id === currentPlayerId ? "bg-gold/15" : ""
               }`}
               style={{ gridTemplateColumns: COLUMNS }}
             >
@@ -69,7 +69,7 @@ export function F1PicksGrid({ round, currentPlayerId }: { round: F1RoundDetail; 
                   <span
                     key={i}
                     className={`rounded text-center leading-6 ${
-                      hit ? "bg-accent font-bold text-accent-foreground" : scored && driver ? "text-muted" : ""
+                      hit ? "bg-positive/25 font-bold ring-1 ring-positive ring-inset" : scored && driver ? "text-muted" : ""
                     }`}
                   >
                     {driver ? (code.get(driver) ?? "?") : "·"}

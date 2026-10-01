@@ -120,9 +120,9 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
                   )}
                 </span>
                 <span className="text-right font-display text-xl leading-none font-bold tabular-nums">{row.points}</span>
-                <span className="text-right text-sm text-muted tabular-nums">{formatMoneyCompact(row.wonCents)}</span>
+                <span className="text-right font-display text-base text-muted tabular-nums">{formatMoneyCompact(row.wonCents)}</span>
                 <span
-                  className={`text-right text-sm font-medium tabular-nums ${
+                  className={`text-right font-display text-base font-semibold tabular-nums ${
                     row.netCents > 0 ? "text-positive" : row.netCents < 0 ? "text-negative" : ""
                   }`}
                 >
