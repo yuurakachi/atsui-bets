@@ -5,6 +5,7 @@ import { TIME_ZONE } from "@/domain";
 import { canManagePool } from "@/lib/dal";
 import { getF1Drivers } from "@/lib/f1";
 import { playerName } from "@/lib/format";
+import { NFL_REGULAR_SEASON_WEEKS } from "@/lib/espn";
 import { reminderMessage, roundTitle } from "@/lib/reminders";
 import { getOpenRoundsProgress } from "@/lib/rounds";
 import { createClient } from "@/lib/supabase/server";
@@ -38,7 +39,9 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
   if (!pool) notFound();
 
   const last = rounds?.at(-1);
-  const nextName = pool.sport === "nfl" ? `Semana ${(last?.ordinal ?? 0) + 1}` : `J${(last?.ordinal ?? 0) + 1}`;
+  const nfl = pool.sport === "nfl";
+  const nextOrdinal = (last?.ordinal ?? 0) + 1;
+  const nextName = nfl ? `Semana ${nextOrdinal}` : `J${nextOrdinal}`;
   const weekend = upcomingWeekend(new Date());
   const pending = (rounds ?? []).filter((r) => r.status === "scheduled" && r.events.length > 0);
   const players = (enrollments ?? [])
@@ -96,12 +99,31 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
       ) : (
         <>
         <section className="mt-8">
-          <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Cargar jornada</h2>
-          <p className="mt-1 mb-3 text-sm text-muted">
-            Busca los partidos de la próxima jornada en ESPN, revísalos y crea la jornada. Los pics
-            cierran solos según las reglas.
-          </p>
-          <RoundLoader poolId={pool.id} sport={pool.sport} nextName={nextName} from={weekend.from} to={weekend.to} />
+          <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">
+            {nfl ? "Cargar semana" : "Cargar jornada"}
+          </h2>
+          {nfl && nextOrdinal > NFL_REGULAR_SEASON_WEEKS ? (
+            <p className="mt-3 text-sm text-muted">
+              Ya están cargadas las {NFL_REGULAR_SEASON_WEEKS} semanas; los playoffs no se juegan.
+            </p>
+          ) : (
+            <>
+              <p className="mt-1 mb-3 text-sm text-muted">
+                {nfl
+                  ? "Busca los juegos de la semana en ESPN, revísalos y crea la semana. Cada juego cierra solo 5 minutos antes de empezar."
+                  : "Busca los partidos de la próxima jornada en ESPN, revísalos y crea la jornada. Los pics cierran solos según las reglas."}
+              </p>
+              <RoundLoader
+                key={nextName}
+                poolId={pool.id}
+                sport={pool.sport}
+                nextName={nextName}
+                from={weekend.from}
+                to={weekend.to}
+                nflWeek={nfl ? { season: pool.season, week: nextOrdinal } : undefined}
+              />
+            </>
+          )}
         </section>
 
         <section className="mt-8">

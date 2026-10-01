@@ -5,6 +5,42 @@ interface Team {
   espnId: string;
 }
 
+/** NFL teams by nickname, with ESPN's abbreviation (also the name of the badge image). */
+const NFL: Record<string, string> = {
+  "49ers": "SF",
+  Bears: "CHI",
+  Bengals: "CIN",
+  Bills: "BUF",
+  Broncos: "DEN",
+  Browns: "CLE",
+  Buccaneers: "TB",
+  Cardinals: "ARI",
+  Chargers: "LAC",
+  Chiefs: "KC",
+  Colts: "IND",
+  Commanders: "WSH",
+  Cowboys: "DAL",
+  Dolphins: "MIA",
+  Eagles: "PHI",
+  Falcons: "ATL",
+  Giants: "NYG",
+  Jaguars: "JAX",
+  Jets: "NYJ",
+  Lions: "DET",
+  Packers: "GB",
+  Panthers: "CAR",
+  Patriots: "NE",
+  Raiders: "LV",
+  Rams: "LAR",
+  Ravens: "BAL",
+  Saints: "NO",
+  Seahawks: "SEA",
+  Steelers: "PIT",
+  Texans: "HOU",
+  Titans: "TEN",
+  Vikings: "MIN",
+};
+
 const LIGA_MX: Record<string, Team> = {
   América: { abbr: "AME", espnId: "227" },
   Atlante: { abbr: "ATE", espnId: "226" },
@@ -33,6 +69,13 @@ export interface TeamBadge {
 }
 
 export function teamBadge(name: string): TeamBadge {
+  const nfl = NFL[name];
+  if (nfl) {
+    return {
+      abbr: nfl,
+      logo: `https://a.espncdn.com/combiner/i?img=/i/teamlogos/nfl/500/${nfl.toLowerCase()}.png&h=48&w=48`,
+    };
+  }
   const team = LIGA_MX[name];
   if (!team) return { abbr: name.slice(0, 3).toUpperCase(), logo: null };
   return {

@@ -31,6 +31,11 @@ current season. ESPN's endpoint is unofficial and has blocked some server-side
 requests, so the admin screens can also fetch it from the admin's browser, and results
 can always be entered by hand.
 
+An NFL week is asked to ESPN by week number rather than by dates, which covers
+Thursday, Saturday and holiday games and skips teams on a bye. A week can be loaded
+after its first game has locked: the games still open take picks as usual, and the
+locked ones are entered by the pool's admins on behalf of the players.
+
 Admins can always enter or correct results by hand; automatic imports are a
 convenience, never the only path.
 
@@ -116,7 +121,7 @@ with `npx supabase db query --linked -f <file>`. Real family data lives in `data
 
 | Script | Imports |
 |---|---|
-| `scripts/import-standings.ts` | A Liga MX / NFL season played before the app (points per round) |
+| `scripts/import-standings.ts` | A Liga MX / NFL season played before the app (points per round), optionally with its sub-admin and the settlement period of the unpaid rounds |
 | `scripts/import-round.ts` | One Liga MX / NFL round played outside the app, with picks |
 | `scripts/import-f1-season.ts` | The F1 season before the app: pool, players, sub-admin, every raced round (Sprints included) with dates, prizes, perfect-round bonuses and settlement periods, checked against the family's jackpot |
 | `scripts/import-f1-picks.ts` | P1–P10 picks of one F1 round collected outside the app, to score it in the app afterwards |
@@ -126,6 +131,8 @@ with `npx supabase db query --linked -f <file>`. Real family data lives in `data
 1. **Home** — pending picks and their deadlines.
 2. **Make picks** — one card per match; F1 is an ordered P1–P10 picker.
 3. **Round** — everyone's picks (after lock), live results, standings and prize leaders.
+   An NFL week shows the picks one kickoff window at a time (Thursday, each Sunday
+   window, Monday) so the table fits a phone; points are always the whole week's.
 4. **Season** — season standings and current jackpot.
 5. **Settlement** (per pool) — monthly settlement: owes / won / net per person.
 6. **Admin** — enrollments, payments, on-behalf picks, results, data import, audit log,

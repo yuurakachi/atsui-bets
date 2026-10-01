@@ -63,8 +63,17 @@ export async function createRound(poolId: string, name: string, matches: MatchIn
 
   const events: NewEvent[] = matches.map((m) => ({ ...m, startsAt: new Date(m.startsAt) }));
   const locks = lockTimes(pool.sport, events);
-  if (locks.some((lock) => lock.getTime() <= Date.now())) {
-    return { ok: false, message: "Algún partido ya cerró sus pics. Elige una jornada futura." };
+  // An NFL week can be loaded once it's under way: games lock one by one, and the ones
+  // already locked are left for the pool's admins to enter on behalf.
+  const open = locks.filter((lock) => lock.getTime() > Date.now()).length;
+  if (pool.sport === "nfl" ? open === 0 : open < locks.length) {
+    return {
+      ok: false,
+      message:
+        pool.sport === "nfl"
+          ? "Todos los juegos de esa semana ya cerraron."
+          : "Algún partido ya cerró sus pics. Elige una jornada futura.",
+    };
   }
 
   const { data: round, error } = await supabase
@@ -95,7 +104,8 @@ export async function createRound(poolId: string, name: string, matches: MatchIn
   }
 
   revalidatePath(`/quinielas/${poolId}`, "layout");
-  return { ok: true, message: `${roundName} creada con ${events.length} partidos.` };
+  const noun = pool.sport === "nfl" ? "juegos" : "partidos";
+  return { ok: true, message: `${roundName} creada con ${events.length} ${noun}.` };
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

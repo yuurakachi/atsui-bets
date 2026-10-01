@@ -40,7 +40,7 @@ interface EspnCompetitor {
   homeAway: "home" | "away";
   score?: string;
   winner?: boolean;
-  team: { displayName: string };
+  team: { displayName: string; shortDisplayName?: string };
 }
 
 interface EspnEvent {
@@ -70,13 +70,15 @@ function resultOf(event: EspnEvent): MatchResult | null {
   return diff > 0 ? "home" : diff < 0 ? "away" : "draw";
 }
 
-function toMatch(event: EspnEvent): EspnMatch {
+function toMatch(event: EspnEvent, sport: Sport): EspnMatch {
   const { competitors, status } = event.competitions[0];
   const state = status.type.state === "in" || status.type.state === "post" ? status.type.state : "pre";
   const home = Number(competitors.find((c) => c.homeAway === "home")?.score);
   const away = Number(competitors.find((c) => c.homeAway === "away")?.score);
   const name = (side: "home" | "away") => {
-    const official = competitors.find((c) => c.homeAway === side)?.team.displayName ?? "?";
+    const team = competitors.find((c) => c.homeAway === side)?.team;
+    // NFL teams go by their nickname ("Chiefs"), as in src/lib/teams.ts.
+    const official = (sport === "nfl" ? team?.shortDisplayName : undefined) ?? team?.displayName ?? "?";
     return TEAM_NAMES[official] ?? official;
   };
   return {
@@ -118,6 +120,24 @@ export async function fetchMatches(sport: Sport, from: string, to: string): Prom
   );
 
   const byId = new Map<string, EspnMatch>();
-  for (const event of responses.flat()) byId.set(event.id, toMatch(event));
+  for (const event of responses.flat()) byId.set(event.id, toMatch(event, sport));
   return [...byId.values()].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+}
+
+export const NFL_REGULAR_SEASON_WEEKS = 18;
+
+/**
+ * Every game of an NFL regular-season week, sorted by kickoff. Asking by week instead of
+ * by dates covers Thursday, Saturday and holiday games, and leaves out teams on a bye.
+ */
+export async function fetchNflWeek(season: string, week: number): Promise<EspnMatch[]> {
+  if (!/^\d{4}$/.test(season) || !Number.isInteger(week) || week < 1 || week > NFL_REGULAR_SEASON_WEEKS) {
+    throw new Error(`Elige una semana del 1 al ${NFL_REGULAR_SEASON_WEEKS}.`);
+  }
+  const response = await fetch(
+    `https://site.api.espn.com/apis/site/v2/sports/${LEAGUE_PATH.nfl}/scoreboard?dates=${season}&seasontype=2&week=${week}`,
+  );
+  if (!response.ok) throw new Error(`ESPN respondió ${response.status}.`);
+  const events = ((await response.json()) as { events?: EspnEvent[] }).events ?? [];
+  return events.map((e) => toMatch(e, "nfl")).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
