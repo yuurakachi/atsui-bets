@@ -14,6 +14,7 @@
  *   npx supabase db query --linked -f data/private/f1.sql
  *
  * --paid      the first N rounds were already settled at a family meeting.
+ * --new-players  comma-separated players to create; everyone else must already exist.
  * --jackpot   the jackpot the family has on paper (pesos): the import stops if the
  *             computed one differs.
  * --calendar  Jolpica's season schedule saved from the browser
@@ -39,6 +40,7 @@ const { values: args } = parseArgs({
     season: { type: "string" },
     name: { type: "string" },
     "sub-admin": { type: "string" },
+    "new-players": { type: "string" },
     paid: { type: "string", default: "0" },
     jackpot: { type: "string" },
     calendar: { type: "string" },
@@ -230,15 +232,24 @@ async function main() {
     })
     .join("\n");
 
+  // With --new-players, anyone else must already exist (e.g. from Liga MX): a typo stops
+  // the import instead of creating a duplicate player.
+  const newPlayers = args["new-players"]
+    ? new Set(args["new-players"].split(",").map((n) => n.trim().toLowerCase()))
+    : null;
   const playerStatements = players
     .map(
       (name) => `
     select id into v_player from public.players
     where lower(coalesce(nickname, display_name)) = lower(${sql(name)}) limit 1;
     if v_player is null then
-      insert into public.players (display_name, nickname) values (${sql(name)}, ${sql(name)})
+      ${
+        newPlayers && !newPlayers.has(name.toLowerCase())
+          ? `raise exception 'Player % not found (only ${[...newPlayers].join(", ")} may be created)', ${sql(name)};`
+          : `insert into public.players (display_name, nickname) values (${sql(name)}, ${sql(name)})
       returning id into v_player;
-      raise notice 'New player: %', ${sql(name)};
+      raise notice 'New player: %', ${sql(name)};`
+      }
     end if;
     insert into import_players values (${sql(name)}, v_player);
     insert into public.enrollments (pool_id, player_id) values (v_pool, v_player)
