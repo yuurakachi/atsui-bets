@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { MatchOutcome } from "@/domain";
+import { teamBadge } from "@/lib/teams";
 import { savePick } from "./actions";
 
 interface PickEvent {
@@ -67,10 +68,11 @@ export function PickForm({ poolId, roundId, allowDraw, events, currentPlayerId, 
     });
   };
 
-  const options: { value: MatchOutcome; label: (e: PickEvent) => string }[] = [
-    { value: "home", label: (e) => e.home },
-    ...(allowDraw ? [{ value: "draw" as const, label: () => "Empate" }] : []),
-    { value: "away", label: (e) => e.away },
+  /** `team` is null for the draw, which has no badge. */
+  const options: { value: MatchOutcome; label: (e: PickEvent) => string; team: (e: PickEvent) => string | null }[] = [
+    { value: "home", label: (e) => e.home, team: (e) => e.home },
+    ...(allowDraw ? [{ value: "draw" as const, label: () => "Empate", team: () => null }] : []),
+    { value: "away", label: (e) => e.away, team: (e) => e.away },
   ];
 
   return (
@@ -132,12 +134,18 @@ export function PickForm({ poolId, roundId, allowDraw, events, currentPlayerId, 
                       disabled={locked}
                       aria-pressed={selected}
                       onClick={() => choose(event.id, option.value)}
-                      className={`min-h-12 rounded-lg border px-2 py-2 text-sm font-semibold leading-tight transition active:scale-95 disabled:opacity-50 ${
+                      className={`flex min-h-12 flex-col items-center gap-1 rounded-lg border px-1 py-2 text-xs font-semibold leading-tight transition active:scale-95 disabled:opacity-50 ${
                         selected
                           ? `border-accent bg-accent text-accent-foreground shadow-sm ${tapped === event.id ? "animate-pop" : ""}`
                           : "border-border hover:border-accent"
                       }`}
                     >
+                      <span
+                        aria-hidden="true"
+                        className={`flex size-9 items-center justify-center rounded-full ${selected ? "bg-accent-foreground text-accent" : ""}`}
+                      >
+                        <TeamMark team={option.team(event)} />
+                      </span>
                       {option.label(event)}
                     </button>
                   );
@@ -148,5 +156,18 @@ export function PickForm({ poolId, roundId, allowDraw, events, currentPlayerId, 
         })}
       </ol>
     </div>
+  );
+}
+
+/** Team badge for a pick button; the abbreviation when there's no image, "E" for the draw. */
+function TeamMark({ team }: { team: string | null }) {
+  const [failed, setFailed] = useState(false);
+  const badge = team ? teamBadge(team) : null;
+  if (!badge?.logo || failed) {
+    return <span className="font-display text-xl leading-none font-bold">{badge ? badge.abbr : "E"}</span>;
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- tiny remote badges; not worth the image optimizer
+    <img src={badge.logo} alt="" width={28} height={28} onError={() => setFailed(true)} className="size-7 object-contain" />
   );
 }
