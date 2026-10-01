@@ -32,6 +32,14 @@ describe("parseSchedule", () => {
       { round: 20, place: "Mystery", raceStart: new Date("2026-10-25T12:00:00Z"), sprintStart: null },
     ]);
   });
+
+  it("names relocated and renamed races the way the family does", () => {
+    const race = (round: string, raceName: string) => ({ season: "2026", round, raceName, date: "2026-10-04" });
+    const races = parseSchedule({
+      MRData: { RaceTable: { Races: [race("16", "Bahrain Grand Prix in Malaysia"), race("20", "Brazilian Grand Prix")] } },
+    });
+    expect(races.map((r) => r.place)).toEqual(["Baréin (Malasia)", "Brasil"]);
+  });
 });
 
 describe("parseDrivers", () => {
