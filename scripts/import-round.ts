@@ -16,6 +16,7 @@ import {
   ligaMxRoundLock,
   nflGameLock,
   perfectRoundBonus,
+  perfectRoundPoints,
   rankEntries,
   roundFinishedAt,
   scoreMatchPicks,
@@ -59,7 +60,7 @@ const entries = picksByPlayer.map(({ player, picks }) => ({
   profileId: player,
   points: scoreMatchPicks(events, picks),
 }));
-const scorable = events.filter((e) => e.result && e.result !== "void").length;
+const scorable = perfectRoundPoints(data.pool.sport, events.map((e) => e.result));
 const round = settleRound(entries, { maxPoints: scorable });
 
 let bonusCents = 0;

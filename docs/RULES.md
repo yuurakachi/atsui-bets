@@ -34,7 +34,8 @@ Details:
 
 - **Liga MX**: regular season only; the playoffs (*liguilla*) are not played.
   A match postponed outside its matchday does not count (nobody scores it).
-- **NFL**: an NFL game that ends in a tie awards no points. No tiebreakers.
+- **NFL**: regular season only (weeks 1–18); the playoffs are not played. An NFL game
+  that ends in a tie awards no points. No tiebreakers.
 - **F1**: a driver can be picked only once per round. Results follow the official
   classification; if it changes afterwards (e.g. a disqualification) an admin re-scores
   the round, as long as the round's money hasn't been settled yet (§6). Once settled,

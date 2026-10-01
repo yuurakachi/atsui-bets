@@ -1,6 +1,7 @@
 /**
  * Points per round. See docs/RULES.md §2.
  */
+import type { Sport } from "./types";
 
 export type MatchOutcome = "home" | "draw" | "away";
 
@@ -31,6 +32,14 @@ export function scoreMatchPicks(
 
 export function isValidNflPick(pick: MatchOutcome): boolean {
   return pick !== "draw";
+}
+
+/**
+ * Points of a perfect round (docs/RULES.md §4): every match that counts. Postponed and
+ * cancelled matches are excluded, and so are NFL ties, which nobody can score.
+ */
+export function perfectRoundPoints(sport: Sport, results: readonly (MatchResult | null)[]): number {
+  return results.filter((r) => r !== null && r !== "void" && !(sport === "nfl" && r === "draw")).length;
 }
 
 export const F1_PICK_POSITIONS = 10;

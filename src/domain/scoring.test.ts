@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isValidNflPick, orderByPosition, scoreF1Pick, scoreMatchPicks, validateF1Pick } from "./scoring";
+import { isValidNflPick, orderByPosition, perfectRoundPoints, scoreF1Pick, scoreMatchPicks, validateF1Pick } from "./scoring";
 
 describe("scoreMatchPicks", () => {
   const matches = [
@@ -25,6 +25,16 @@ describe("scoreMatchPicks", () => {
   it("awards no points for an NFL tie", () => {
     expect(scoreMatchPicks([{ id: "g1", result: "draw" }], { g1: "home" })).toBe(0);
     expect(isValidNflPick("draw")).toBe(false);
+  });
+});
+
+describe("perfectRoundPoints", () => {
+  it("counts every match with a result that isn't void", () => {
+    expect(perfectRoundPoints("liga_mx", ["home", "draw", "away", "void", null])).toBe(3);
+  });
+
+  it("leaves NFL ties out, so a perfect week is still possible", () => {
+    expect(perfectRoundPoints("nfl", ["home", "draw", "away", "void"])).toBe(2);
   });
 });
 
