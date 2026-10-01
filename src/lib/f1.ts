@@ -1,6 +1,13 @@
 import "server-only";
 import { cache } from "react";
-import { F1_PICK_POSITIONS, f1SeasonRounds, orderByPosition, type F1RoundKind } from "@/domain";
+import {
+  F1_PICK_POSITIONS,
+  f1SeasonRounds,
+  matchF1Rounds,
+  orderByPosition,
+  type F1RoundKind,
+  type F1RoundPlan,
+} from "@/domain";
 import { playerName } from "./format";
 import { f1ExternalId, type F1DriverInfo, type F1SeasonData } from "./jolpica";
 import { scoreRound } from "./rounds";
@@ -36,13 +43,18 @@ export interface SeasonImport {
   /** Races that already happened and aren't in the app: they come from the season import. */
   skipped: number;
   drivers: number;
+  /** Open rounds whose race is no longer in the calendar: cancelled, for the admin to remove. */
+  missing: string[];
+  /** New races that couldn't be created because another race holds their place in the calendar. */
+  blocked: string[];
 }
 
 /**
  * Loads a season from Jolpica data: upserts its drivers and creates the rounds that are
  * still open for picks (a Sprint weekend makes two). Existing rounds keep their picks;
  * open ones get their times refreshed. Past races are never created here, so nobody
- * gets a round with zero picks by accident.
+ * gets a round with zero picks by accident. Nothing is ever removed: a race that left
+ * the calendar is reported, and an admin removes it.
  */
 export async function importF1Season(supabase: Supabase, poolId: string, data: F1SeasonData): Promise<SeasonImport> {
   const { data: pool } = await supabase.from("pools").select("sport, season").eq("id", poolId).single();
@@ -59,51 +71,66 @@ export async function importF1Season(supabase: Supabase, poolId: string, data: F
     .from("rounds")
     .select("id, kind, ordinal, status, name, events(id, external_id, starts_at, lock_at)")
     .eq("pool_id", poolId);
-  const byKey = new Map((existing ?? []).map((r) => [`${r.kind}:${r.ordinal}`, r]));
   const now = Date.now();
-  const result: SeasonImport = { created: 0, updated: 0, skipped: 0, drivers: data.drivers.filter((d) => d.active).length };
+  const { matches, orphans } = matchF1Rounds(f1SeasonRounds(data.races), existing ?? []);
+  const result: SeasonImport = {
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    drivers: data.drivers.filter((d) => d.active).length,
+    missing: orphans.filter((r) => r.status === "scheduled").map((r) => r.name),
+    blocked: [],
+  };
 
-  const plans = f1SeasonRounds(data.races).map((plan) => ({
-    ...plan,
-    externalId: f1ExternalId(data.season, plan.raceRound, plan.kind),
-  }));
-  const eventRow = (roundId: string, plan: (typeof plans)[number]) => ({
+  const eventRow = (roundId: string, plan: F1RoundPlan) => ({
     round_id: roundId,
-    external_id: plan.externalId,
+    external_id: f1ExternalId(data.season, plan.raceRound, plan.kind),
     name: plan.name,
     starts_at: plan.startsAt.toISOString(),
     lock_at: plan.lockAt.toISOString(),
   });
 
-  const toCreate = [];
-  for (const plan of plans) {
-    const round = byKey.get(`${plan.kind}:${plan.ordinal}`);
+  const toCreate: F1RoundPlan[] = [];
+  for (const { plan, round, blocked } of matches) {
     if (!round) {
-      if (plan.lockAt.getTime() > now) toCreate.push(plan);
-      else result.skipped++;
+      if (plan.lockAt.getTime() <= now) result.skipped++;
+      else if (blocked) result.blocked.push(plan.name);
+      else toCreate.push(plan);
       continue;
     }
     const event = round.events[0];
+    const row = eventRow(round.id, plan);
     if (!event) {
       // A round imported from before the app: attach its race so it shows dates.
-      const { error } = await supabase.from("events").insert(eventRow(round.id, plan));
+      const { error } = await supabase.from("events").insert(row);
       if (error) throw new Error(error.message);
       result.updated++;
-    } else if (
-      round.status === "scheduled" &&
-      new Date(event.lock_at).getTime() > now &&
+      continue;
+    }
+    // A removed race keeps its name: if another race now sits in its place, it isn't this round.
+    if (round.status === "cancelled" && round.name !== plan.name) {
+      if (plan.lockAt.getTime() > now) result.blocked.push(plan.name);
+      continue;
+    }
+    // The calendar was renumbered: results are fetched by race number, so follow it.
+    const renumbered = event.external_id !== row.external_id;
+    const open = round.status === "scheduled" && new Date(event.lock_at).getTime() > now;
+    const rescheduled =
+      open &&
       (new Date(event.starts_at).getTime() !== plan.startsAt.getTime() ||
         new Date(event.lock_at).getTime() !== plan.lockAt.getTime() ||
-        round.name !== plan.name)
-    ) {
-      const { error } = await supabase
-        .from("events")
-        .update({ starts_at: plan.startsAt.toISOString(), lock_at: plan.lockAt.toISOString(), name: plan.name })
-        .eq("id", event.id);
-      if (error) throw new Error(error.message);
-      await supabase.from("rounds").update({ name: plan.name }).eq("id", round.id);
-      result.updated++;
-    }
+        round.name !== plan.name);
+    if (!renumbered && !rescheduled) continue;
+    const { error } = await supabase
+      .from("events")
+      .update({
+        external_id: row.external_id,
+        ...(rescheduled && { starts_at: row.starts_at, lock_at: row.lock_at, name: row.name }),
+      })
+      .eq("id", event.id);
+    if (error) throw new Error(error.message);
+    if (rescheduled) await supabase.from("rounds").update({ name: plan.name }).eq("id", round.id);
+    result.updated++;
   }
 
   if (toCreate.length > 0) {

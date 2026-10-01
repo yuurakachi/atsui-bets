@@ -81,6 +81,11 @@ Notes:
   rounds sort by date with the Sprint first. Each round has one event (the race) whose
   `external_id` is `f1:<season>:<race round>:<gp|sprint>`, used to fetch its result.
   `f1_drivers.active` hides drivers who aren't racing any more from the pick screen.
+- **F1 calendar changes**: loading the calendar again pairs each race with its round by
+  name, so rounds keep their own race (and follow its new number) when Jolpica drops a
+  cancelled race and renumbers the rest. It never removes a round: an admin marks a
+  cancelled race's round as `cancelled`, which keeps its picks, takes it out of picks,
+  reminders and money, and stops the calendar from creating it again.
 - F1 picks and classifications are written through `save_f1_picks` and
   `save_f1_classification`, which replace the whole ordered list in one transaction
   (so a driver can move between positions) and run as the caller, under row level

@@ -312,7 +312,13 @@ export async function loadF1Season(poolId: string, fromBrowser?: F1SeasonData): 
       ok: true,
       message:
         `${result.created} jornadas nuevas, ${result.updated} actualizadas, ${result.drivers} pilotos activos.` +
-        (result.skipped ? ` ${result.skipped} carreras ya corridas no se crearon (van con la importación de la temporada).` : ""),
+        (result.skipped ? ` ${result.skipped} carreras ya corridas no se crearon (van con la importación de la temporada).` : "") +
+        (result.missing.length
+          ? ` Ya no están en el calendario de Jolpica: ${result.missing.join(", ")}. Si se cancelaron, quítalas abajo.`
+          : "") +
+        (result.blocked.length
+          ? ` No se pudieron crear (el calendario cambió de numeración): ${result.blocked.join(", ")}. Avísale al admin.`
+          : ""),
     };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
@@ -403,4 +409,31 @@ export async function setDriverActive(poolId: string, driverId: string, active: 
   if (error) return { ok: false, message: "No se pudo guardar." };
   revalidatePath(`/quinielas/${poolId}`, "layout");
   return { ok: true, message: active ? "Visible en los pics." : "Oculto en los pics." };
+}
+
+/**
+ * Removes a race that won't be run from the pool (nobody picks or pays it), or puts it
+ * back. The round and its picks are kept, so loading the calendar doesn't create it again.
+ */
+export async function setF1RoundCancelled(poolId: string, roundId: string, cancelled: boolean): Promise<ActionResult> {
+  if (!(await canManagePool(poolId))) return { ok: false, message: "No tienes permiso para esta quiniela." };
+  const { supabase, season } = await f1Pool(poolId);
+  if (!season) return { ok: false, message: "Esta quiniela no es de F1." };
+
+  const { data: updated, error } = await supabase
+    .from("rounds")
+    .update({ status: cancelled ? "cancelled" : "scheduled" })
+    .eq("id", roundId)
+    .eq("pool_id", poolId)
+    .eq("status", cancelled ? "scheduled" : "cancelled")
+    .select("name");
+  if (error) return { ok: false, message: "No se pudo guardar." };
+  if (!updated.length) {
+    return { ok: false, message: cancelled ? "Esa jornada ya está calificada o ya se quitó." : "Esa jornada no está quitada." };
+  }
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: cancelled ? `${updated[0].name} se quitó: nadie la juega ni la paga.` : `${updated[0].name} vuelve a jugarse.`,
+  };
 }

@@ -30,6 +30,7 @@ export async function F1Round({ pool, roundId, currentPlayerId, manager }: Props
   const scored = pool.rounds.find((r) => r.id === roundId);
   const locked = !detail.event || detail.event.lockAt <= new Date();
   const enrolled = detail.players.some((p) => p.id === currentPlayerId);
+  const cancelled = detail.status === "cancelled";
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
@@ -40,7 +41,7 @@ export async function F1Round({ pool, roundId, currentPlayerId, manager }: Props
       {detail.event && (
         <p className="mt-1 text-muted">
           {detail.kind === "sprint" ? "Sprint" : "Carrera"}: {dateFormat.format(detail.event.startsAt)}
-          {!locked && (
+          {!locked && !cancelled && (
             <span className="block">
               Los pics cierran el {dateFormat.format(detail.event.lockAt)}
               {detail.kind === "sprint" && " (junto con el GP)"}
@@ -51,7 +52,13 @@ export async function F1Round({ pool, roundId, currentPlayerId, manager }: Props
 
       {scored && <RoundResults round={scored} currentPlayerId={currentPlayerId} />}
 
-      {!scored && (!locked || manager) && (
+      {cancelled && (
+        <p className="mt-6 rounded-xl border border-dashed border-border px-4 py-6 text-center text-muted">
+          Esta carrera se canceló: no se juega ni se paga.
+        </p>
+      )}
+
+      {!scored && !cancelled && (!locked || manager) && (
         <div className="mt-6">
           {enrolled || manager ? (
             <F1PickForm

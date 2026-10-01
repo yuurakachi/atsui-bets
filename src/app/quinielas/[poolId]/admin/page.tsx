@@ -10,11 +10,19 @@ import { reminderMessage, roundTitle } from "@/lib/reminders";
 import { getOpenRoundsProgress } from "@/lib/rounds";
 import { createClient } from "@/lib/supabase/server";
 import { upcomingWeekend } from "./dates";
-import { F1DriverList, F1ResultsCard, F1SeasonLoader } from "./f1-admin";
+import { F1DriverList, F1RaceList, F1ResultsCard, F1SeasonLoader } from "./f1-admin";
 import { PlayerRow } from "./player-row";
 import { ReminderCard } from "./reminder-card";
 import { ResultsUpdater, RoundLoader } from "./round-loader";
 
+const raceDate = new Intl.DateTimeFormat("es-MX", {
+  timeZone: TIME_ZONE,
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
 const isoDay = (date: Date) => date.toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
 
 export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[poolId]/admin">) {
@@ -219,6 +227,14 @@ async function F1Admin({ poolId, season, rounds }: { poolId: string; season: str
     ...unsettled.filter((r) => r.events.some((e) => scoredInApp.has(e.id))).reverse(),
   ];
   const upcoming = rounds.filter((r) => r.status === "scheduled" && !started(r));
+  const races = rounds
+    .filter((r) => r.status !== "completed")
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      date: r.events[0] ? raceDate.format(new Date(r.events[0].starts_at)) : null,
+      cancelled: r.status === "cancelled",
+    }));
 
   return (
     <>
@@ -228,9 +244,21 @@ async function F1Admin({ poolId, season, rounds }: { poolId: string; season: str
           {upcoming.length > 0
             ? `${upcoming.length} jornadas por correr; sigue ${upcoming[0].name}.`
             : "No hay jornadas por correr cargadas."}{" "}
-          Cargar de nuevo agrega lo que falte y actualiza horarios; no toca pics ni resultados.
+          Cargar de nuevo agrega lo que falte y actualiza horarios; no toca pics ni resultados, ni quita carreras.
         </p>
         <F1SeasonLoader poolId={poolId} season={season} />
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Carreras</h2>
+        <p className="mt-1 mb-3 text-sm text-muted">
+          Si una carrera se cancela, quítala: nadie la juega ni la paga, y cargar el calendario no la vuelve a crear.
+        </p>
+        {races.length === 0 ? (
+          <p className="text-sm text-muted">No hay carreras por correr cargadas.</p>
+        ) : (
+          <F1RaceList poolId={poolId} races={races} />
+        )}
       </section>
 
       <section className="mt-8">

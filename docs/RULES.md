@@ -43,7 +43,8 @@ Details:
   classification; if it changes afterwards (e.g. a disqualification) an admin re-scores
   the round, as long as the round's money hasn't been settled yet (§6). Once settled,
   the result stands. A Sprint weekend produces **two rounds** (Sprint and GP), each paid
-  and scored independently.
+  and scored independently. A cancelled race is not a round: an admin removes it, and
+  nobody picks or pays it.
 
 ## 3. Pick deadlines
 

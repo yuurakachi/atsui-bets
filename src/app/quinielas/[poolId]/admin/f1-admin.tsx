@@ -9,6 +9,7 @@ import {
   loadF1Season,
   saveManualClassification,
   setDriverActive,
+  setF1RoundCancelled,
   type ActionResult,
   type F1ActionResult,
 } from "./actions";
@@ -139,6 +140,51 @@ export function F1ResultsCard({ poolId, roundId, name, externalId, scored, drive
           </div>
         </div>
       )}
+      <Message result={result} />
+    </div>
+  );
+}
+
+export interface F1RaceRow {
+  id: string;
+  name: string;
+  /** When the race starts, already formatted. */
+  date: string | null;
+  cancelled: boolean;
+}
+
+/** Races not scored yet: an admin removes the ones that are cancelled, or puts them back. */
+export function F1RaceList({ poolId, races }: { poolId: string; races: F1RaceRow[] }) {
+  const [result, setResult] = useState<ActionResult | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const toggle = (race: F1RaceRow) => {
+    if (
+      !race.cancelled &&
+      !window.confirm(`¿Quitar ${race.name}? Nadie la juega ni la paga. Los pics ya hechos se conservan por si la restauras.`)
+    ) {
+      return;
+    }
+    startTransition(async () => setResult(await setF1RoundCancelled(poolId, race.id, !race.cancelled)));
+  };
+
+  return (
+    <div>
+      <ul className="rounded-xl border border-border bg-surface">
+        {races.map((race) => (
+          <li key={race.id} className="flex items-center gap-3 border-b border-border px-3 py-2 last:border-0">
+            <span className="min-w-0 flex-1">
+              <span className={race.cancelled ? "text-muted line-through" : "font-medium"}>{race.name}</span>
+              <span className="block truncate text-xs text-muted">
+                {race.cancelled ? "Quitada: no se juega" : (race.date ?? "Sin fecha")}
+              </span>
+            </span>
+            <button type="button" onClick={() => toggle(race)} disabled={pending} className={buttonClass}>
+              {race.cancelled ? "Restaurar" : "Quitar"}
+            </button>
+          </li>
+        ))}
+      </ul>
       <Message result={result} />
     </div>
   );
