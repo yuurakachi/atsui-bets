@@ -29,7 +29,7 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
   const rounds = [...pool.rounds].reverse();
 
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
+    <main data-sport={pool.sport} className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
       <Link href="/" className="text-sm text-muted hover:text-foreground">
         ← Inicio
       </Link>
@@ -72,10 +72,10 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
         </details>
       )}
 
-      <section className="mt-6 rounded-2xl bg-accent px-5 py-4 text-accent-foreground">
-        <p className="text-sm font-medium opacity-80">Acumulado de la temporada</p>
-        <p className="mt-1 text-3xl font-bold tabular-nums">{formatMoney(pool.jackpotBalanceCents)}</p>
-        <p className="mt-1 text-sm opacity-80">Se reparte al final: 1° 50 %, lucky 7 35 %, bobby 15 %.</p>
+      <section className="mt-6 rounded-2xl border-2 border-accent bg-surface px-5 py-4">
+        <p className="text-sm font-medium text-muted">Acumulado de la temporada</p>
+        <p className="font-display text-5xl leading-none font-bold text-accent tabular-nums">{formatMoney(pool.jackpotBalanceCents)}</p>
+        <p className="mt-1.5 text-sm text-muted">Se reparte al final: 1° 50 %, lucky 7 35 %, bobby 15 %.</p>
       </section>
 
       <Link
@@ -92,7 +92,7 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
       <section className="mt-8">
         <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Tabla general</h2>
         <div className="mt-3 overflow-hidden rounded-xl border border-border bg-surface">
-          <div className="grid grid-cols-[1.5rem_1fr_2.25rem_4.25rem_4.25rem] gap-1.5 border-b border-border px-3 py-2 text-xs font-medium text-muted">
+          <div className="grid grid-cols-[1.5rem_1fr_2.25rem_4.25rem_4.25rem] gap-1.5 border-b border-border px-3 py-2 text-xs font-semibold tracking-wider text-muted uppercase">
             <span>#</span>
             <span>Jugador</span>
             <span className="text-right">Pts</span>
@@ -104,7 +104,7 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
               <li
                 key={row.playerId}
                 className={`grid grid-cols-[1.5rem_1fr_2.25rem_4.25rem_4.25rem] items-center gap-1.5 border-b border-border px-3 py-2.5 last:border-0 ${
-                  row.playerId === player.id ? "bg-accent/10" : ""
+                  row.playerId === player.id ? "bg-gold/15" : ""
                 }`}
               >
                 <span className="text-sm text-muted tabular-nums">{row.position}</span>
@@ -113,17 +113,17 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
                   {row.jackpotPrize && (
                     <span
                       title={`Hoy se llevaría ${formatMoney(row.jackpotPrize.cents)} del acumulado`}
-                      className="shrink-0 rounded-full border border-accent/50 px-1.5 py-0.5 text-[0.65rem] font-semibold text-accent"
+                      className="shrink-0 rounded-full border border-gold/60 px-1.5 py-0.5 text-[0.65rem] font-semibold text-gold"
                     >
                       {JACKPOT_LABEL[row.jackpotPrize.kind]}
                     </span>
                   )}
                 </span>
-                <span className="text-right font-semibold tabular-nums">{row.points}</span>
+                <span className="text-right font-display text-xl leading-none font-bold tabular-nums">{row.points}</span>
                 <span className="text-right text-sm text-muted tabular-nums">{formatMoneyCompact(row.wonCents)}</span>
                 <span
                   className={`text-right text-sm font-medium tabular-nums ${
-                    row.netCents > 0 ? "text-emerald-600 dark:text-emerald-400" : row.netCents < 0 ? "text-red-500" : ""
+                    row.netCents > 0 ? "text-positive" : row.netCents < 0 ? "text-negative" : ""
                   }`}
                 >
                   {formatNet(row.netCents)}
@@ -152,9 +152,9 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
                 >
                   <span className="min-w-0">
                     <span className="flex items-center gap-2">
-                      <span className="font-semibold">{round.name}</span>
+                      <span className="font-display text-xl leading-tight font-bold">{round.name}</span>
                       {!round.settled && (
-                        <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-[0.65rem] font-medium">
+                        <span className="rounded-full border border-gold/60 px-2 py-0.5 text-[0.65rem] font-semibold text-gold">
                           Pago pendiente
                         </span>
                       )}
@@ -163,7 +163,7 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
                       Gana {winners.map((w) => w.name).join(", ") || "—"}
                     </span>
                   </span>
-                  <span className="shrink-0 text-right text-sm font-medium tabular-nums">
+                  <span className="shrink-0 text-right font-display text-lg leading-tight font-semibold tabular-nums">
                     {winners[0] ? formatMoney(winners[0].prizeCents) : "—"}
                     {winners.length > 1 && <span className="block text-xs text-muted">c/u</span>}
                   </span>

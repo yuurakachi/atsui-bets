@@ -16,7 +16,7 @@ import {
 function Message({ result }: { result: ActionResult | null }) {
   if (!result) return null;
   return (
-    <p role="status" className={`mt-3 text-sm ${result.ok ? "text-accent" : "text-red-500"}`}>
+    <p role="status" className={`mt-3 text-sm ${result.ok ? "text-positive" : "text-negative"}`}>
       {result.message}
     </p>
   );

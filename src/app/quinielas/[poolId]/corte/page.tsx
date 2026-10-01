@@ -18,7 +18,7 @@ export default async function SettlementPage({ params }: PageProps<"/quinielas/[
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
+    <main data-sport={pool.sport} className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
       <Link href={`/quinielas/${pool.id}`} className="text-sm text-muted hover:text-foreground">
         ← {pool.name}
       </Link>
@@ -44,7 +44,7 @@ export default async function SettlementPage({ params }: PageProps<"/quinielas/[
           <section className="mt-8">
             <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Por persona</h2>
             <div className="mt-3 overflow-hidden rounded-xl border border-border bg-surface">
-              <div className="grid grid-cols-[1fr_4.5rem_4.5rem_5.5rem] gap-2 border-b border-border px-3 py-2 text-xs font-medium text-muted">
+              <div className="grid grid-cols-[1fr_4.5rem_4.5rem_5.5rem] gap-2 border-b border-border px-3 py-2 text-xs font-semibold tracking-wider text-muted uppercase">
                 <span>Jugador</span>
                 <span className="text-right">Paga</span>
                 <span className="text-right">Gana</span>
@@ -55,7 +55,7 @@ export default async function SettlementPage({ params }: PageProps<"/quinielas/[
                   <li
                     key={line.profileId}
                     className={`grid grid-cols-[1fr_4.5rem_4.5rem_5.5rem] items-center gap-2 border-b border-border px-3 py-2.5 text-sm last:border-0 ${
-                      line.profileId === player.id ? "bg-accent/10" : ""
+                      line.profileId === player.id ? "bg-gold/15" : ""
                     }`}
                   >
                     <span className="truncate font-medium">{line.name}</span>
@@ -64,7 +64,7 @@ export default async function SettlementPage({ params }: PageProps<"/quinielas/[
                       {line.wonCents > 0 ? formatMoney(line.wonCents) : "—"}
                     </span>
                     <span
-                      className={`text-right font-semibold tabular-nums ${line.netCents >= 0 ? "text-accent" : ""}`}
+                      className={`text-right font-semibold tabular-nums ${line.netCents > 0 ? "text-positive" : line.netCents < 0 ? "text-negative" : ""}`}
                     >
                       {line.netCents > 0 ? "+" : ""}
                       {formatMoney(line.netCents)}
@@ -107,8 +107,8 @@ export default async function SettlementPage({ params }: PageProps<"/quinielas/[
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-border bg-surface px-2 py-3">
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="mt-1 font-semibold tabular-nums">{value}</dd>
+      <dt className="text-[0.65rem] font-semibold tracking-wider text-muted uppercase">{label}</dt>
+      <dd className="mt-0.5 font-display text-xl font-bold tabular-nums">{value}</dd>
     </div>
   );
 }

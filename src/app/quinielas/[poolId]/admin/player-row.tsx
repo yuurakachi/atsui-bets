@@ -24,14 +24,14 @@ export function PlayerRow({ poolId, player }: Props) {
       <li className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5 last:border-0">
         <span className="min-w-0">
           <span className="block font-medium">{player.nickname}</span>
-          <span className={`block truncate text-sm ${player.email ? "text-muted" : "text-accent"}`}>
+          <span className={`block truncate text-sm ${player.email ? "text-muted" : "text-gold"}`}>
             {player.email ?? "Sin correo"}
           </span>
-          {state?.ok && <span className="block text-xs text-accent">{state.message}</span>}
+          {state?.ok && <span className="block text-xs text-positive">{state.message}</span>}
         </span>
         <span className="flex shrink-0 items-center gap-2">
           {player.signedIn && (
-            <span title="Ya entró a la app" className="rounded-full bg-accent/15 px-2 py-0.5 text-xs font-medium text-accent">
+            <span title="Ya entró a la app" className="rounded-full bg-positive/15 px-2 py-0.5 text-xs font-medium text-positive">
               Activo
             </span>
           )}
@@ -72,7 +72,7 @@ export function PlayerRow({ poolId, player }: Props) {
           />
         </label>
         {state && !state.ok && (
-          <p role="alert" className="text-sm text-red-500">
+          <p role="alert" className="text-sm text-negative">
             {state.message}
           </p>
         )}

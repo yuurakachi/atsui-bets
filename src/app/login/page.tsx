@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { signInWithGoogle } from "@/app/auth/actions";
+import { Logo } from "@/app/logo";
 
 const ERRORS: Record<string, string> = {
   oauth: "No se pudo conectar con Google. Intenta de nuevo.",
@@ -13,12 +14,14 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm text-center">
-        <p className="text-sm font-medium tracking-wide text-accent uppercase">Liga MX · NFL · F1</p>
-        <h1 className="mt-2 text-4xl font-bold tracking-tight">Atsui bets</h1>
-        <p className="mt-3 text-muted">La quiniela de la familia, toda en un solo lugar.</p>
+        <h1>
+          <Logo className="mx-auto h-auto w-56" />
+        </h1>
+        <p className="mt-6 font-display text-sm font-semibold tracking-[0.2em] text-muted uppercase">Liga MX · NFL · F1</p>
+        <p className="mt-2 text-muted">La quiniela de la familia, toda en un solo lugar.</p>
 
         {message && (
-          <p role="alert" className="mt-6 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm">
+          <p role="alert" className="mt-6 rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-sm">
             {message}
           </p>
         )}

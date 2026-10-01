@@ -1,26 +1,46 @@
 @import "tailwindcss";
 
+/* Red on cream, taken from the family's logo (public/logo.png). */
 :root {
-  --background: #fbf8f6;
-  --foreground: #1c1714;
-  --surface: #ffffff;
-  --muted: #6f6660;
-  --border: #ebe4df;
-  --accent: #e2481c;
-  --accent-foreground: #ffffff;
+  --background: #f6f3ee;
+  --foreground: #2a1a17;
+  --surface: #fffdf8;
+  --muted: #7a6a63;
+  --border: #e6dccd;
+  --accent: #cd191a;
+  --accent-foreground: #fff7ec;
+  /* Brand red is close to "negative", so highlights (own row, prizes, jackpot tags) are gold. */
+  --gold: #946409;
+  --positive: #12754a;
+  --negative: #c4201f;
+  --liga-mx: #12703f;
+  --nfl: #1d3f8f;
+  --f1: #3a3a40;
+  --sport: var(--accent);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #141110;
-    --foreground: #f3eeea;
-    --surface: #1e1a18;
-    --muted: #a39992;
-    --border: #2f2926;
-    --accent: #ff6a3d;
-    --accent-foreground: #1c0d07;
+    --background: #171110;
+    --foreground: #f5ece2;
+    --surface: #211917;
+    --muted: #a8988f;
+    --border: #3a2c27;
+    --accent: #ef4136;
+    --accent-foreground: #fff7ec;
+    --gold: #e2b354;
+    --positive: #5fd598;
+    --negative: #ff7a6e;
+    --liga-mx: #4cc38a;
+    --nfl: #7da2f5;
+    --f1: #c9c9cf;
   }
 }
+
+/* Set on a pool's <main>; everything inside picks up the sport's colour. */
+[data-sport="liga_mx"] { --sport: var(--liga-mx); }
+[data-sport="nfl"] { --sport: var(--nfl); }
+[data-sport="f1"] { --sport: var(--f1); }
 
 @theme inline {
   --color-background: var(--background);
@@ -30,11 +50,79 @@
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-gold: var(--gold);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-sport: var(--sport);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-barlow-condensed), var(--font-geist-sans), sans-serif;
+  --font-script: var(--font-oleo-script), cursive;
+  --radius-lg: 0.4375rem;
+  --radius-xl: 0.5625rem;
+  --radius-2xl: 0.75rem;
+  --animate-pop: pop 0.28s ease-out;
+  --animate-fade-in: fade-in 0.2s ease-out;
+
+  @keyframes pop {
+    0% { transform: scale(0.94); }
+    60% { transform: scale(1.04); }
+    100% { transform: scale(1); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(2px); }
+    to { opacity: 1; transform: none; }
+  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/*
+ * Headings look like a jersey: condensed, bold, uppercase. Unlayered on purpose, so
+ * every screen (F1 included) gets them without touching its markup.
+ */
+h1,
+h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+h1 {
+  font-size: 2rem;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+}
+h2 {
+  font-size: 1.125rem;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  color: var(--foreground);
+}
+
+/* The greeting next to the logo, in the logo's handwriting. */
+h1.script {
+  font-family: var(--font-script);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--accent);
+}
+
+/* The underline stroke from the logo. */
+.swoosh {
+  display: block;
+  height: 0.4rem;
+  border-top: 3px solid var(--accent);
+  border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

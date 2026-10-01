@@ -15,7 +15,7 @@ export function RoundResults({ round, currentPlayerId }: { round: PoolRound; cur
       )}
 
       <div className="mt-6 overflow-hidden rounded-xl border border-border bg-surface">
-        <div className="grid grid-cols-[2rem_1fr_3rem_5.5rem] gap-2 border-b border-border px-3 py-2 text-xs font-medium text-muted">
+        <div className="grid grid-cols-[2rem_1fr_3rem_5.5rem] gap-2 border-b border-border px-3 py-2 text-xs font-semibold tracking-wider text-muted uppercase">
           <span>#</span>
           <span>Jugador</span>
           <span className="text-right">Pts</span>
@@ -26,13 +26,13 @@ export function RoundResults({ round, currentPlayerId }: { round: PoolRound; cur
             <li
               key={r.playerId}
               className={`grid grid-cols-[2rem_1fr_3rem_5.5rem] items-center gap-2 border-b border-border px-3 py-2.5 last:border-0 ${
-                r.playerId === currentPlayerId ? "bg-accent/10" : ""
+                r.playerId === currentPlayerId ? "bg-gold/15" : ""
               }`}
             >
               <span className="text-sm text-muted tabular-nums">{r.position}</span>
               <span className="truncate font-medium">{r.name}</span>
-              <span className="text-right font-semibold tabular-nums">{r.points}</span>
-              <span className={`text-right text-sm tabular-nums ${r.prizeCents + r.bonusCents > 0 ? "font-semibold text-accent" : "text-muted"}`}>
+              <span className="text-right font-display text-xl leading-none font-bold tabular-nums">{r.points}</span>
+              <span className={`text-right text-sm tabular-nums ${r.prizeCents + r.bonusCents > 0 ? "font-semibold text-gold" : "text-muted"}`}>
                 {r.prizeCents + r.bonusCents > 0 ? formatMoney(r.prizeCents + r.bonusCents) : "—"}
               </span>
             </li>
@@ -46,8 +46,8 @@ export function RoundResults({ round, currentPlayerId }: { round: PoolRound; cur
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-border bg-surface px-2 py-3">
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="mt-1 font-semibold tabular-nums">{value}</dd>
+      <dt className="text-[0.65rem] font-semibold tracking-wider text-muted uppercase">{label}</dt>
+      <dd className="mt-0.5 font-display text-xl font-bold tabular-nums">{value}</dd>
     </div>
   );
 }

@@ -104,8 +104,8 @@ export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }
       <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wide text-muted uppercase">
         Pics de todos
         {anyLive && (
-          <span className="flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[0.65rem] font-bold text-red-500">
-            <span className="size-1.5 animate-pulse rounded-full bg-red-500" />
+          <span className="flex items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5 font-sans text-[0.65rem] font-bold tracking-normal text-accent">
+            <span className="size-1.5 animate-pulse rounded-full bg-accent" />
             EN VIVO
           </span>
         )}
@@ -123,11 +123,11 @@ export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }
                   onClick={() => setSelected(selected === e.id ? null : e.id)}
                   aria-label={`${e.home} contra ${e.away}`}
                   aria-pressed={selected === e.id}
-                  className={`flex flex-col items-center gap-0.5 rounded py-0.5 ${selected === e.id ? "bg-accent/20" : ""}`}
+                  className={`flex flex-col items-center gap-0.5 rounded py-0.5 ${selected === e.id ? "bg-gold/25" : ""}`}
                 >
                   <Badge team={e.home} />
                   <Badge team={e.away} />
-                  <span className={`text-[0.6rem] leading-3 tabular-nums ${match?.state === "in" ? "font-bold text-red-500" : ""}`}>
+                  <span className={`text-[0.6rem] leading-3 tabular-nums ${match?.state === "in" ? "font-bold text-accent" : ""}`}>
                     {match?.score ? `${match.score.home}-${match.score.away}` : " "}
                   </span>
                 </button>
@@ -136,7 +136,7 @@ export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }
             <span className="text-right">Pts</span>
           </div>
           {selectedEvent && (
-            <p className="border-b border-border bg-accent/10 px-2 py-1.5 text-center text-xs">
+            <p className="border-b border-border bg-gold/15 px-2 py-1.5 text-center text-xs">
               <MatchLine event={selectedEvent} match={matchOf(selectedEvent)} outcome={outcomes.get(selectedEvent.id)} />
             </p>
           )}
@@ -144,7 +144,7 @@ export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }
             <div
               key={player.id}
               className={`grid items-center gap-0.5 border-b border-border px-2 py-1 text-sm last:border-0 ${
-                player.id === currentPlayerId ? "bg-accent/10" : ""
+                player.id === currentPlayerId ? "bg-gold/15" : ""
               }`}
               style={{ gridTemplateColumns: columns }}
             >
@@ -157,10 +157,10 @@ export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }
                   ? ""
                   : hit
                     ? known.final
-                      ? "bg-emerald-500/30 ring-1 ring-emerald-500 ring-inset"
-                      : "ring-1 ring-emerald-500 ring-inset"
+                      ? "bg-positive/25 ring-1 ring-positive ring-inset"
+                      : "ring-1 ring-positive ring-inset"
                     : known.final
-                      ? "opacity-45 grayscale"
+                      ? "opacity-45 grayscale dark:opacity-60"
                       : "opacity-60";
                 return (
                   <span key={e.id} className={`flex h-7 items-center justify-center rounded ${style}`}>
@@ -174,7 +174,7 @@ export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }
                   </span>
                 );
               })}
-              <span className="text-right font-semibold tabular-nums">{player.points}</span>
+              <span className="text-right font-display text-lg leading-none font-bold tabular-nums">{player.points}</span>
             </div>
           ))}
         </div>
@@ -232,7 +232,7 @@ function MatchLine({
       {event.home}
       {match?.score ? ` ${match.score.home}–${match.score.away} ` : " vs "}
       {event.away}
-      {match?.state === "in" && <span className="font-medium text-red-500"> · {match.clock}</span>}
+      {match?.state === "in" && <span className="font-medium text-accent"> · {match.clock}</span>}
       {result && (
         <span className="text-foreground">
           {" · "}

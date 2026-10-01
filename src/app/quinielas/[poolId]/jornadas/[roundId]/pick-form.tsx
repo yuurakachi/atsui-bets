@@ -37,6 +37,8 @@ export function PickForm({ poolId, roundId, allowDraw, events, currentPlayerId, 
   const [picks, setPicks] = useState(initial);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Event whose button was just tapped, to animate only that one. */
+  const [tapped, setTapped] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   const mine = picks[playerId] ?? {};
@@ -48,6 +50,7 @@ export function PickForm({ poolId, roundId, allowDraw, events, currentPlayerId, 
     if (previous === selection) return;
     setError(null);
     setSaving(eventId);
+    setTapped(eventId);
     setPicks((p) => ({ ...p, [playerId]: { ...p[playerId], [eventId]: selection } }));
     startTransition(async () => {
       const result = await savePick(poolId, roundId, eventId, playerId, selection);
@@ -90,12 +93,22 @@ export function PickForm({ poolId, roundId, allowDraw, events, currentPlayerId, 
         </label>
       )}
 
-      <p className="text-sm text-muted" aria-live="polite">
-        {done === events.length ? "✓ Pics completos" : `Llevas ${done} de ${events.length}`}
-        {saving && " · guardando…"}
-      </p>
+      <div className="sticky top-0 z-10 -mx-4 bg-background/95 px-4 py-2 backdrop-blur">
+        <p className="flex items-center justify-between text-sm" aria-live="polite">
+          <span className={done === events.length ? "font-semibold text-positive" : "font-medium"}>
+            {done === events.length ? "✓ Pics completos" : `Llevas ${done} de ${events.length}`}
+          </span>
+          {saving && <span className="animate-pulse text-muted">guardando…</span>}
+        </p>
+        <div aria-hidden="true" className="mt-1.5 h-1 overflow-hidden rounded-full bg-border">
+          <div
+            className={`h-full rounded-full transition-[width] duration-300 ${done === events.length ? "bg-positive" : "bg-accent"}`}
+            style={{ width: `${events.length ? (done / events.length) * 100 : 0}%` }}
+          />
+        </div>
+      </div>
       {error && (
-        <p role="alert" className="mt-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm">
+        <p role="alert" className="mt-2 rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-sm">
           {error}
         </p>
       )}
@@ -106,7 +119,7 @@ export function PickForm({ poolId, roundId, allowDraw, events, currentPlayerId, 
           return (
             <li key={event.id} className="rounded-xl border border-border bg-surface p-3">
               <p className="mb-2 flex justify-between text-xs text-muted">
-                <span>Partido {i + 1}</span>
+                <span className="font-semibold tracking-wider uppercase">Partido {i + 1}</span>
                 <span>{locked ? "Cerrado" : kickoff.format(new Date(event.startsAt))}</span>
               </p>
               <div className={`grid gap-2 ${allowDraw ? "grid-cols-3" : "grid-cols-2"}`}>
@@ -119,9 +132,9 @@ export function PickForm({ poolId, roundId, allowDraw, events, currentPlayerId, 
                       disabled={locked}
                       aria-pressed={selected}
                       onClick={() => choose(event.id, option.value)}
-                      className={`min-h-12 rounded-lg border px-2 py-2 text-sm font-medium leading-tight transition disabled:opacity-50 ${
+                      className={`min-h-12 rounded-lg border px-2 py-2 text-sm font-semibold leading-tight transition active:scale-95 disabled:opacity-50 ${
                         selected
-                          ? "border-accent bg-accent text-accent-foreground"
+                          ? `border-accent bg-accent text-accent-foreground shadow-sm ${tapped === event.id ? "animate-pop" : ""}`
                           : "border-border hover:border-accent"
                       }`}
                     >

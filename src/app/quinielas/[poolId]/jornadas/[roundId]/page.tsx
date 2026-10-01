@@ -43,7 +43,7 @@ export default async function RoundPage({ params }: PageProps<"/quinielas/[poolI
     const sameLock = detail.events.every((e) => e.lockAt.getTime() === firstLock.getTime());
 
     return (
-      <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
+      <main data-sport={pool.sport} className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
         <Link href={`/quinielas/${pool.id}`} className="text-sm text-muted hover:text-foreground">
           ← {pool.name}
         </Link>
@@ -84,7 +84,7 @@ export default async function RoundPage({ params }: PageProps<"/quinielas/[poolI
   }
 
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
+    <main data-sport={pool.sport} className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
       <Link href={`/quinielas/${pool.id}`} className="text-sm text-muted hover:text-foreground">
         ← {pool.name}
       </Link>
