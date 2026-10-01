@@ -1,6 +1,7 @@
 /**
  * Imports a season that started before the app: one row per player with their points
- * per round (J1, J2, …) and an optional TOTAL column used as a checksum.
+ * per round (columns "J1, J2, …" or "Semana 1, Semana 2, …") and an optional TOTAL column
+ * used as a checksum.
  *
  * Positions, prizes and the jackpot are computed with the same rules engine the app
  * uses, and the result is written as an idempotent SQL script (re-running it replaces
@@ -9,12 +10,17 @@
  *
  *   npx tsx scripts/import-standings.ts --csv data/private/standings.csv \
  *     --sport liga_mx --season "Apertura 2026" --name "Liga MX Apertura 2026" \
- *     --kind matchday --out data/private/import.sql
+ *     --kind matchday --out data/private/import.sql  *     [--sub-admin Ro] [--new-players "Chucho,Charly"] [--unpaid-cutoff 2026-10-03]
+ *
+ * --new-players: anyone else must already exist, so a typo stops the import instead of
+ * creating a duplicate player. --unpaid-cutoff: none of the rounds has been paid yet; they
+ * all go to the settlement period of that meeting (its Saturday, Mexico City date).
  *   npx supabase db query --linked -f data/private/import.sql
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { distributePrizes, rankEntries, settleRound, type StandingEntry } from "../src/domain";
+import { zonedTime } from "../src/domain/time";
 
 const { values: args } = parseArgs({
   options: {
@@ -24,6 +30,9 @@ const { values: args } = parseArgs({
     name: { type: "string" },
     kind: { type: "string", default: "matchday" },
     out: { type: "string" },
+    "sub-admin": { type: "string" },
+    "new-players": { type: "string" },
+    "unpaid-cutoff": { type: "string" },
   },
 });
 
@@ -38,7 +47,8 @@ const [header, ...rows] = readFileSync(args.csv!, "utf8")
 
 const roundColumns = header
   .map((title, index) => ({ title, index }))
-  .filter(({ title }) => /^J\d+$/i.test(title));
+  .filter(({ title }) => /^(J|Semana )\d+$/i.test(title));
+const roundName = (title: string) => (/^J/i.test(title) ? title.toUpperCase() : `Semana ${title.match(/\d+/)![0]}`);
 const totalIndex = header.findIndex((h) => h.toUpperCase() === "TOTAL");
 
 const players = rows.map((row) => row[0]);
@@ -59,6 +69,13 @@ if (totalIndex !== -1) {
 const sql = (value: string) => `'${value.replaceAll("'", "''")}'`;
 const pesos = (cents: number) =>
   (cents / 100).toLocaleString("es-MX", { style: "currency", currency: "MXN" });
+
+let cutoff: string | null = null;
+if (args["unpaid-cutoff"]) {
+  const [year, month, day] = args["unpaid-cutoff"].split("-").map(Number);
+  if (!year || !month || !day) throw new Error("--unpaid-cutoff must be YYYY-MM-DD.");
+  cutoff = zonedTime({ year, month, day }, 0, 0).toISOString();
+}
 
 const statements: string[] = [];
 const report: string[] = [];
@@ -81,11 +98,12 @@ for (const [i, { title, index }] of roundColumns.entries()) {
     .join(",\n      ");
 
   statements.push(`
-  insert into public.rounds (pool_id, name, kind, ordinal, status, pot_cents, jackpot_cents)
-  values (v_pool, ${sql(title.toUpperCase())}, ${sql(args.kind!)}, ${i + 1}, 'completed', ${round.potCents}, ${round.jackpotCents})
+  insert into public.rounds (pool_id, name, kind, ordinal, status, pot_cents, jackpot_cents, settlement_period_id)
+  values (v_pool, ${sql(roundName(title))}, ${sql(args.kind!)}, ${i + 1}, 'completed', ${round.potCents}, ${round.jackpotCents}, v_period)
   on conflict (pool_id, kind, ordinal) do update
     set name = excluded.name, status = excluded.status,
-        pot_cents = excluded.pot_cents, jackpot_cents = excluded.jackpot_cents
+        pot_cents = excluded.pot_cents, jackpot_cents = excluded.jackpot_cents,
+        settlement_period_id = coalesce(excluded.settlement_period_id, rounds.settlement_period_id)
   returning id into v_round;
 
   delete from public.round_results where round_id = v_round;
@@ -97,25 +115,46 @@ for (const [i, { title, index }] of roundColumns.entries()) {
   join import_players ip on ip.name = x.name;`);
 
   report.push(
-    `${title.toUpperCase()}  bolsa ${pesos(round.potCents)}, al acumulado ${pesos(round.jackpotCents)}` +
+    `${roundName(title)}  bolsa ${pesos(round.potCents)}, al acumulado ${pesos(round.jackpotCents)}` +
       `  →  gana ${round.winnerIds.join(", ")} (${pesos(round.perWinnerCents)} c/u)`,
   );
 }
 
+const newPlayers = args["new-players"]
+  ? new Set(args["new-players"].split(",").map((n) => n.trim().toLowerCase()))
+  : null;
 const playerStatements = players
   .map(
     (name) => `
   select id into v_player from public.players
   where lower(coalesce(nickname, display_name)) = lower(${sql(name)}) limit 1;
   if v_player is null then
-    insert into public.players (display_name, nickname) values (${sql(name)}, ${sql(name)})
-    returning id into v_player;
+    ${
+      newPlayers && !newPlayers.has(name.toLowerCase())
+        ? `raise exception 'Player % not found (only ${[...newPlayers].join(", ")} may be created)', ${sql(name)};`
+        : `insert into public.players (display_name, nickname) values (${sql(name)}, ${sql(name)})
+    returning id into v_player;`
+    }
   end if;
   insert into import_players values (${sql(name)}, v_player);
   insert into public.enrollments (pool_id, player_id) values (v_pool, v_player)
   on conflict do nothing;`,
   )
   .join("\n");
+
+const subAdmin = args["sub-admin"]
+  ? `
+  select id into v_player from public.players
+  where lower(coalesce(nickname, display_name)) = lower(${sql(args["sub-admin"])}) limit 1;
+  if v_player is null then raise exception 'Sub-admin % not found', ${sql(args["sub-admin"])}; end if;
+  insert into public.pool_admins (pool_id, player_id) values (v_pool, v_player) on conflict do nothing;`
+  : "";
+const period = cutoff
+  ? `
+  insert into public.settlement_periods (pool_id, cutoff_at) values (v_pool, ${sql(cutoff)})
+  on conflict (pool_id, cutoff_at) do update set cutoff_at = excluded.cutoff_at
+  returning id into v_period;`
+  : "";
 
 writeFileSync(
   args.out!,
@@ -125,6 +164,7 @@ declare
   v_pool uuid;
   v_round uuid;
   v_player uuid;
+  v_period uuid;
 begin
   insert into public.pools (sport, season, name, status)
   values (${sql(args.sport!)}, ${sql(args.season!)}, ${sql(args.name!)}, 'active')
@@ -133,6 +173,8 @@ begin
 
   create temp table import_players (name text primary key, player_id uuid not null);
 ${playerStatements}
+${subAdmin}
+${period}
 ${statements.join("\n")}
 
   drop table import_players;
