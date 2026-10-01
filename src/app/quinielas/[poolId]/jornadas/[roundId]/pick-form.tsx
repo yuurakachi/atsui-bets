@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { MatchOutcome } from "@/domain";
 import { teamBadge } from "@/lib/teams";
 import { savePick } from "./actions";
@@ -10,14 +10,16 @@ interface PickEvent {
   home: string;
   away: string;
   startsAt: string;
-  /** Computed on the server when the page renders. */
-  locked: boolean;
+  lockAt: string;
 }
 
 interface Props {
   poolId: string;
   roundId: string;
-  allowDraw: boolean;
+  /** NFL: no draw, visitor first, and each game locks on its own. */
+  nfl: boolean;
+  /** Server time when the page rendered, to tell which events have locked. */
+  now: number;
   events: PickEvent[];
   currentPlayerId: string;
   /** Present only for the pool's admins: whose picks they're entering. */
@@ -33,7 +35,14 @@ const kickoff = new Intl.DateTimeFormat("es-MX", {
   minute: "2-digit",
 });
 
-export function PickForm({ poolId, roundId, allowDraw, events, currentPlayerId, players, picks: initial }: Props) {
+export function PickForm({ poolId, roundId, nfl, now: renderedAt, events, currentPlayerId, players, picks: initial }: Props) {
+  const allowDraw = !nfl;
+  // Games lock one by one while the page is open.
+  const [now, setNow] = useState(renderedAt);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 20_000);
+    return () => clearInterval(timer);
+  }, []);
   const [playerId, setPlayerId] = useState(currentPlayerId);
   const [picks, setPicks] = useState(initial);
   const [saving, setSaving] = useState<string | null>(null);
@@ -69,11 +78,12 @@ export function PickForm({ poolId, roundId, allowDraw, events, currentPlayerId, 
   };
 
   /** `team` is null for the draw, which has no badge. */
-  const options: { value: MatchOutcome; label: (e: PickEvent) => string; team: (e: PickEvent) => string | null }[] = [
-    { value: "home", label: (e) => e.home, team: (e) => e.home },
-    ...(allowDraw ? [{ value: "draw" as const, label: () => "Empate", team: () => null }] : []),
-    { value: "away", label: (e) => e.away, team: (e) => e.away },
-  ];
+  type Option = { value: MatchOutcome; label: (e: PickEvent) => string; team: (e: PickEvent) => string | null };
+  const home: Option = { value: "home", label: (e) => e.home, team: (e) => e.home };
+  const away: Option = { value: "away", label: (e) => e.away, team: (e) => e.away };
+  const options: Option[] = nfl
+    ? [away, home]
+    : [home, { value: "draw", label: () => "Empate", team: () => null }, away];
 
   return (
     <div>
@@ -117,11 +127,11 @@ export function PickForm({ poolId, roundId, allowDraw, events, currentPlayerId, 
 
       <ol className="mt-3 space-y-3">
         {events.map((event, i) => {
-          const locked = event.locked && !players;
+          const locked = Date.parse(event.lockAt) <= now && !players;
           return (
             <li key={event.id} className="rounded-xl border border-border bg-surface p-3">
               <p className="mb-2 flex justify-between text-xs text-muted">
-                <span className="font-semibold tracking-wider uppercase">Partido {i + 1}</span>
+                <span className="font-semibold tracking-wider uppercase">{nfl ? "Juego" : "Partido"} {i + 1}</span>
                 <span>{locked ? "Cerrado" : kickoff.format(new Date(event.startsAt))}</span>
               </p>
               <div className={`grid gap-2 ${allowDraw ? "grid-cols-3" : "grid-cols-2"}`}>

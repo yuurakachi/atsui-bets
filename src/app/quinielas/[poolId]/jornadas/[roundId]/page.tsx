@@ -51,7 +51,7 @@ export default async function RoundPage({ params }: PageProps<"/quinielas/[poolI
         <p className="mt-1 text-muted">
           {sameLock
             ? `Los pics cierran el ${lockFormat.format(firstLock)}`
-            : "Cada partido cierra 5 minutos antes de empezar"}
+            : "Cada juego cierra 5 minutos antes de empezar; puedes cambiar tus pics hasta entonces."}
         </p>
 
         <div className="mt-6">
@@ -59,7 +59,8 @@ export default async function RoundPage({ params }: PageProps<"/quinielas/[poolI
             <PickForm
               poolId={pool.id}
               roundId={detail.id}
-              allowDraw={detail.sport !== "nfl"}
+              nfl={detail.sport === "nfl"}
+              now={now.getTime()}
               currentPlayerId={player.id}
               players={manager ? detail.players : undefined}
               picks={picks}
@@ -68,7 +69,7 @@ export default async function RoundPage({ params }: PageProps<"/quinielas/[poolI
                 home: e.home,
                 away: e.away,
                 startsAt: e.startsAt.toISOString(),
-                locked: e.lockAt <= now,
+                lockAt: e.lockAt.toISOString(),
               }))}
             />
           ) : (

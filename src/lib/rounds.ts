@@ -7,6 +7,7 @@ import {
   nflGameLock,
   orderByPosition,
   perfectRoundBonus,
+  perfectRoundPoints,
   rankEntries,
   roundFinishedAt,
   scoreF1Pick,
@@ -17,6 +18,7 @@ import {
   type Sport,
 } from "@/domain";
 import { playerName } from "./format";
+import { nextDayEvents } from "./reminders";
 import { createClient } from "./supabase/server";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -104,6 +106,7 @@ export interface UpcomingRound {
   poolId: string;
   sport: Sport;
   name: string;
+  /** When the next open event locks; the first lock of the round once they all have. */
   firstLockAt: Date;
   /** Every event has locked. */
   closed: boolean;
@@ -152,7 +155,7 @@ export const getUpcomingRounds = cache(async (poolIds: string[], playerId: strin
         poolId: r.pool_id,
         sport,
         name: r.name,
-        firstLockAt: new Date(Math.min(...r.events.map((e) => new Date(e.lock_at).getTime()))),
+        firstLockAt: new Date(Math.min(...(open.length ? open : r.events).map((e) => new Date(e.lock_at).getTime()))),
         closed: open.length === 0,
         events: r.events.length * perEvent,
         missing: open.reduce((acc, e) => acc + perEvent - Math.min(perEvent, picked.get(e.id) ?? 0), 0),
@@ -205,7 +208,16 @@ export async function getOpenRoundsProgress(poolId: string): Promise<OpenRoundPr
   const nextDeadline = Math.min(...open.map(firstLock));
   open = open.filter((r) => firstLock(r) <= nextDeadline + UPCOMING_WINDOW_MS);
 
-  const f1 = rounds?.[0]?.pool?.sport === "f1";
+  const sport = rounds?.[0]?.pool?.sport;
+  // NFL games lock one by one: chase the games of the next day that has any.
+  if (sport === "nfl") {
+    open = open.map((r) => {
+      const next = new Set(nextDayEvents(r.events.map((e) => ({ id: e.id, lockAt: new Date(e.lock_at) }))).map((e) => e.id));
+      return { ...r, events: r.events.filter((e) => next.has(e.id)) };
+    });
+  }
+
+  const f1 = sport === "f1";
   const perEvent = f1 ? F1_PICK_POSITIONS : 1;
   const eventIds = open.flatMap((r) => r.events.map((e) => e.id));
   const { data: picks } = eventIds.length
@@ -267,7 +279,7 @@ export async function scoreRound(supabase: Supabase, roundId: string): Promise<b
   const scoring =
     round.pool.sport === "f1"
       ? await f1Points(supabase, events.map((e) => e.id), playerIds)
-      : await matchPoints(supabase, events, playerIds);
+      : await matchPoints(supabase, round.pool.sport, events, playerIds);
   if (!scoring) return false;
 
   // Jackpot balance before this round, to pay a perfect-round bonus.
@@ -333,6 +345,7 @@ interface RoundPoints {
 /** Liga MX / NFL: null until every match has a result. */
 async function matchPoints(
   supabase: Supabase,
+  sport: Sport,
   events: { id: string; result: string | null }[],
   playerIds: string[],
 ): Promise<RoundPoints | null> {
@@ -351,7 +364,7 @@ async function matchPoints(
       return [id, scoreMatchPicks(scored, mine)];
     }),
   );
-  return { points, maxPoints: scored.filter((e) => e.result !== "void").length };
+  return { points, maxPoints: perfectRoundPoints(sport, scored.map((e) => e.result)) };
 }
 
 /** F1: null until every race of the round has an official classification down to P10. */
