@@ -124,7 +124,7 @@ export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }
         )}
       </h2>
       {slots.length > 1 && (
-        <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {slots.map((s) => (
             <button
               key={s.key}
