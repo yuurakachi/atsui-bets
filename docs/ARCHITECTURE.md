@@ -98,6 +98,8 @@ Enforced in Postgres, so they hold no matter which client talks to the database.
   the pools they manage, and can add players.
 - Sub-admins also create and close their pool's settlement periods.
 - Only the admin manages pools, sub-admins and admin rights.
+- A pool with status `upcoming` is visible to the admin only, so it can be set up and
+  tried out before the family sees it; it shows up for everyone once it's `active`.
 - The audit log is written by triggers only; admins and sub-admins can read it.
 - Server jobs (results import, scoring) use the secret key and bypass RLS.
 

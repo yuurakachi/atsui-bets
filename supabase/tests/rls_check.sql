@@ -32,8 +32,9 @@ begin
   insert into public.players (display_name, email) values ('Q', 'q@test.local') returning id into q_id;
   insert into public.players (display_name, email) values ('Grandma', 'grandma@test.local') returning id into grandma_id;
 
-  insert into public.pools (sport, season, name) values ('liga_mx', 'TEST', 'Liga TEST') returning id into liga;
-  insert into public.pools (sport, season, name) values ('f1', 'TEST', 'F1 TEST') returning id into f1;
+  insert into public.pools (sport, season, name, status) values ('liga_mx', 'TEST', 'Liga TEST', 'active') returning id into liga;
+  insert into public.pools (sport, season, name, status) values ('f1', 'TEST', 'F1 TEST', 'active') returning id into f1;
+  insert into public.pools (sport, season, name, status) values ('nfl', 'TEST', 'NFL TEST', 'upcoming');
   insert into public.pool_admins values (liga, sub_id);
   insert into public.enrollments (pool_id, player_id) values (liga, p_id), (liga, q_id), (liga, grandma_id), (liga, sub_id), (f1, p_id);
 
@@ -93,6 +94,10 @@ begin
 
   select count(*) into n from public.match_picks where player_id = q_id and event_id = e_open;
   report := report || format(E'\n%s others'' picks hidden before lock (saw %s)', case when n = 0 then 'PASS' else 'FAIL' end, n);
+  if n <> 0 then failures := failures + 1; end if;
+
+  select count(*) into n from public.pools where season = 'TEST' and status = 'upcoming';
+  report := report || format(E'\n%s upcoming pool hidden from players (saw %s)', case when n = 0 then 'PASS' else 'FAIL' end, n);
   if n <> 0 then failures := failures + 1; end if;
 
   select count(*) into n from public.match_picks where player_id = q_id and event_id = e_locked;
@@ -233,6 +238,10 @@ begin
   exception when others then
     report := report || E'\nPASS picks require enrollment, even for the admin';
   end;
+
+  select count(*) into n from public.pools where season = 'TEST' and status = 'upcoming';
+  report := report || format(E'\n%s admin sees an upcoming pool', case when n = 1 then 'PASS' else 'FAIL' end);
+  if n <> 1 then failures := failures + 1; end if;
 
   begin
     perform public.save_f1_classification(f1_locked, array[d3, d1, d2]);
