@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import {
   F1_PICK_POSITIONS,
+  f1PicksShownFrom,
   ligaMxRoundLock,
   nextDefaultCutoff,
   nflGameLock,
@@ -170,7 +171,12 @@ export const getUpcomingRounds = cache(async (poolIds: string[], playerId: strin
     const lock = r.firstLockAt.getTime();
     nextDeadline.set(r.poolId, Math.min(lock, nextDeadline.get(r.poolId) ?? lock));
   }
-  return upcoming.filter((r) => r.closed || r.firstLockAt.getTime() <= nextDeadline.get(r.poolId)! + UPCOMING_WINDOW_MS);
+  return upcoming.filter(
+    (r) =>
+      r.closed ||
+      (r.firstLockAt.getTime() <= nextDeadline.get(r.poolId)! + UPCOMING_WINDOW_MS &&
+        (r.sport !== "f1" || f1PicksShownFrom(r.firstLockAt).getTime() <= now)),
+  );
 });
 
 export interface OpenRoundProgress {
@@ -208,9 +214,12 @@ export async function getOpenRoundsProgress(poolId: string): Promise<OpenRoundPr
   const firstLock = (r: (typeof open)[number]) => Math.min(...r.events.map((e) => new Date(e.lock_at).getTime()));
   // F1 loads the whole season: only chase the next weekend.
   const nextDeadline = Math.min(...open.map(firstLock));
-  open = open.filter((r) => firstLock(r) <= nextDeadline + UPCOMING_WINDOW_MS);
-
   const sport = rounds?.[0]?.pool?.sport;
+  open = open.filter(
+    (r) =>
+      firstLock(r) <= nextDeadline + UPCOMING_WINDOW_MS &&
+      (sport !== "f1" || f1PicksShownFrom(new Date(firstLock(r))).getTime() <= now),
+  );
   // NFL games lock one by one: chase the games of the next day that has any.
   if (sport === "nfl") {
     open = open.map((r) => {

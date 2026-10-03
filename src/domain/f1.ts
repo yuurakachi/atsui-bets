@@ -3,6 +3,7 @@
  * weekends (Sprint and GP). See docs/RULES.md §2–3.
  */
 import { f1RoundLock } from "./deadlines";
+import { localDateOf, MONDAY, previousOrSame, zonedTime } from "./time";
 
 export interface F1Race {
   /** Championship round number, 1-based. */
@@ -28,6 +29,14 @@ export interface F1RoundPlan {
 
 export function f1RoundOrdinal(raceRound: number, kind: F1RoundKind): number {
   return kind === "sprint" ? raceRound * 2 - 1 : raceRound * 2;
+}
+
+/**
+ * F1 picks are asked for from Monday 00:00 of the race week, once the previous race is
+ * over: the whole season is loaded, but only that week's rounds show up as pending.
+ */
+export function f1PicksShownFrom(lockAt: Date): Date {
+  return zonedTime(previousOrSame(localDateOf(lockAt), MONDAY), 0, 0);
 }
 
 export interface F1RoundMatch<T> {

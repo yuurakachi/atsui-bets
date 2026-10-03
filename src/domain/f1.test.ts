@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { f1SeasonRounds, matchF1Rounds } from "./f1";
+import { f1PicksShownFrom, f1SeasonRounds, matchF1Rounds } from "./f1";
 
 // Mexico City is UTC-6. October 2026: Thu 8, Fri 9, Sat 10, Sun 11 … Fri 23, Sun 25.
 describe("f1SeasonRounds", () => {
@@ -34,6 +34,14 @@ describe("f1SeasonRounds", () => {
 
   it("locks a regular weekend on Friday 15:00", () => {
     expect(rounds[2].lockAt.toISOString()).toBe("2026-10-23T21:00:00.000Z");
+  });
+});
+
+describe("f1PicksShownFrom", () => {
+  it("asks for picks from Monday 00:00 of the race week", () => {
+    // Sprint weekend locking Thursday Oct 8 and regular weekend locking Friday Oct 23.
+    expect(f1PicksShownFrom(new Date("2026-10-08T21:00:00Z")).toISOString()).toBe("2026-10-05T06:00:00.000Z");
+    expect(f1PicksShownFrom(new Date("2026-10-23T21:00:00Z")).toISOString()).toBe("2026-10-19T06:00:00.000Z");
   });
 });
 

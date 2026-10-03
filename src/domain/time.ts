@@ -60,6 +60,7 @@ export function addDays(date: LocalDate, days: number): LocalDate {
   return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
 }
 
+export const MONDAY = 1;
 export const THURSDAY = 4;
 export const FRIDAY = 5;
 export const SATURDAY = 6;
