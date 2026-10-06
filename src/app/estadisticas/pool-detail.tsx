@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { Tally } from "@/domain";
+import { formatMoneyCompact, formatNet } from "@/lib/format";
 import type { PoolPickStats, PoolStats, StatsPlayer } from "@/lib/stats";
 import { NetChart, PointsChart, StandingChart } from "./charts";
-import { countRounds, money, net, roundNoun, shortRoundLabel, SPORT_LABEL } from "./labels";
+import { countRounds, roundNoun, shortRoundLabel, SPORT_LABEL } from "./labels";
 import { Legend, toneOf } from "./summary";
 
 const oneDecimal = new Intl.NumberFormat("es-MX", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -103,7 +104,7 @@ export function PoolDetail({
                       <span className="text-right font-display text-lg leading-none font-bold tabular-nums">{round.points}</span>
                       <span className="text-right text-muted tabular-nums">{round.position}°</span>
                       <span className="text-right text-muted tabular-nums">
-                        {round.wonCents > 0 ? money(round.wonCents) : "—"}
+                        {round.wonCents > 0 ? formatMoneyCompact(round.wonCents) : "—"}
                       </span>
                     </Link>
                   </li>
@@ -162,15 +163,15 @@ export function PoolDetail({
             <h2>Neto</h2>
             <div className="mt-3 rounded-xl border border-border bg-surface px-4 py-3">
               <p className={`font-display text-4xl leading-none font-bold tabular-nums ${toneOf(pool.netCents)}`}>
-                {net(pool.netCents)}
+                {formatNet(pool.netCents)}
               </p>
               <p className="mt-1.5 text-sm text-muted">
-                Ganado {money(pool.wonCents)} · Pagado {money(pool.paidCents)}
+                Ganado {formatMoneyCompact(pool.wonCents)} · Pagado {formatMoneyCompact(pool.paidCents)}
               </p>
               <div className="-mx-2 mt-3">
                 <NetChart
                   by="round"
-                  label={`Neto acumulado después de cada ${noun}: ${rounds.map((r) => `${r.name} ${net(r.netCents)}`).join(", ")}.`}
+                  label={`Neto acumulado después de cada ${noun}: ${rounds.map((r) => `${r.name} ${formatNet(r.netCents)}`).join(", ")}.`}
                   points={rounds.map((r, i) => ({ label: labels[i], cents: r.netCents, won: r.won }))}
                 />
               </div>
@@ -181,9 +182,9 @@ export function PoolDetail({
               </ul>
             </div>
             <p className="mt-2 text-xs text-muted">
-              Cada {noun} cuesta {money(rounds[0].feeCents)}. El acumulado aún no cuenta
+              Cada {noun} cuesta {formatMoneyCompact(rounds[0].feeCents)}. El acumulado aún no cuenta
               {pool.jackpotPrize
-                ? `; si la temporada terminara hoy, ${mine ? "te llevarías" : "se llevaría"} ${money(pool.jackpotPrize.cents)}.`
+                ? `; si la temporada terminara hoy, ${mine ? "te llevarías" : "se llevaría"} ${formatMoneyCompact(pool.jackpotPrize.cents)}.`
                 : "."}
             </p>
           </section>

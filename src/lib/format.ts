@@ -6,19 +6,14 @@ export function formatMoney(cents: Cents): string {
   return money.format(cents / 100);
 }
 
-const compactMoney = new Intl.NumberFormat("es-MX", {
-  style: "currency",
-  currency: "MXN",
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
+const wholeMoney = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 });
 
-/** Like formatMoney but drops ".00", for tight tables. */
+/** Like formatMoney but drops ".00", for tight tables. Amounts with cents keep both decimals. */
 export function formatMoneyCompact(cents: Cents): string {
-  return compactMoney.format(cents / 100);
+  return cents % 100 === 0 ? wholeMoney.format(cents / 100) : money.format(cents / 100);
 }
 
-/** Signed amount: "+$1,205" or "-$300". */
+/** Signed amount: "+$1,205", "-$262.50" or "$0". */
 export function formatNet(cents: Cents): string {
   return `${cents > 0 ? "+" : cents < 0 ? "-" : ""}${formatMoneyCompact(Math.abs(cents))}`;
 }

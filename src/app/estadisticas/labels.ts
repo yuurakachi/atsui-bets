@@ -1,5 +1,4 @@
-import type { Cents, PrizeKind, Sport } from "@/domain";
-import { formatMoney, formatMoneyCompact } from "@/lib/format";
+import type { PrizeKind, Sport } from "@/domain";
 
 export const SPORT_LABEL: Record<Sport, string> = {
   liga_mx: "Liga MX",
@@ -34,14 +33,4 @@ export function shortRoundLabel(name: string, index: number): string {
   if (/^J\d+$/.test(name)) return name;
   const week = /^Semana (\d+)$/.exec(name);
   return week ? `S${week[1]}` : String(index + 1);
-}
-
-/** Money without ".00" but never with a single decimal: "$3,400", "$562.50". */
-export function money(cents: Cents): string {
-  return cents % 100 === 0 ? formatMoneyCompact(cents) : formatMoney(cents);
-}
-
-/** Signed money: "+$262.50", "-$295", "$0". */
-export function net(cents: Cents): string {
-  return `${cents > 0 ? "+" : cents < 0 ? "-" : ""}${money(Math.abs(cents))}`;
 }

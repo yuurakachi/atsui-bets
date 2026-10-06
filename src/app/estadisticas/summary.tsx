@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { netByMeeting, TIME_ZONE, type StandingSummary } from "@/domain";
+import { formatMoneyCompact, formatNet } from "@/lib/format";
 import type { PoolStats, StatsPlayer } from "@/lib/stats";
 import { NetChart } from "./charts";
-import { countRounds, JACKPOT_LABEL, money, net, roundNoun } from "./labels";
+import { countRounds, JACKPOT_LABEL, roundNoun } from "./labels";
 
 const meetingDate = new Intl.DateTimeFormat("es-MX", { timeZone: TIME_ZONE, day: "numeric", month: "short" });
 const meetingMonth = new Intl.DateTimeFormat("es-MX", { timeZone: TIME_ZONE, month: "short" });
@@ -33,10 +34,10 @@ export function StatsSummary({ player, mine, pools }: { player: StatsPlayer; min
           <section className="mt-6 rounded-2xl border border-border bg-surface px-5 py-4">
             <p className="text-sm font-medium text-muted">Neto total</p>
             <p className={`font-display text-5xl leading-none font-bold tabular-nums ${toneOf(netCents)}`}>
-              {net(netCents)}
+              {formatNet(netCents)}
             </p>
             <p className="mt-1.5 text-sm text-muted">
-              Ganado {money(wonCents)} · Pagado {money(paidCents)}
+              Ganado {formatMoneyCompact(wonCents)} · Pagado {formatMoneyCompact(paidCents)}
             </p>
             {meetings.length > 0 && (
               <>
@@ -44,7 +45,7 @@ export function StatsSummary({ player, mine, pools }: { player: StatsPlayer; min
                   <NetChart
                     by="meeting"
                     label={`Neto acumulado después de cada reunión: ${meetings
-                      .map((m) => `${m.cutoffAt ? meetingDate.format(m.cutoffAt) : "sin corte"} ${net(m.cumulativeCents)}`)
+                      .map((m) => `${m.cutoffAt ? meetingDate.format(m.cutoffAt) : "sin corte"} ${formatNet(m.cumulativeCents)}`)
                       .join(", ")}.`}
                     points={meetings.map((m) => ({
                       label: m.cutoffAt ? meetingMonth.format(m.cutoffAt).replace(".", "") : "—",
@@ -91,7 +92,7 @@ export function StatsSummary({ player, mine, pools }: { player: StatsPlayer; min
                             <span
                               className={`shrink-0 font-display text-lg font-semibold tabular-nums ${toneOf(pool.nextMeeting.netCents)}`}
                             >
-                              {net(pool.nextMeeting.netCents)}
+                              {formatNet(pool.nextMeeting.netCents)}
                             </span>
                           ) : (
                             <span className="shrink-0 text-muted">—</span>
@@ -105,7 +106,7 @@ export function StatsSummary({ player, mine, pools }: { player: StatsPlayer; min
                       {dueCents === 0 ? "Sale a mano" : `${mine ? "Te" : "Le"} toca ${dueCents > 0 ? "cobrar" : "pagar"}`}
                     </span>
                     <span className={`font-display text-xl font-bold tabular-nums ${toneOf(dueCents)}`}>
-                      {money(Math.abs(dueCents))}
+                      {formatMoneyCompact(Math.abs(dueCents))}
                     </span>
                   </p>
                 </div>
@@ -183,11 +184,11 @@ function PoolCard({ pool, playerId, mine }: { pool: PoolStats; playerId: string;
 
           <span className="mt-2.5 flex items-center justify-between gap-3 text-sm">
             <span className="text-muted">
-              Neto <span className={`font-semibold tabular-nums ${toneOf(pool.netCents)}`}>{net(pool.netCents)}</span>
+              Neto <span className={`font-semibold tabular-nums ${toneOf(pool.netCents)}`}>{formatNet(pool.netCents)}</span>
             </span>
             {pool.jackpotPrize ? (
               <span className="rounded-full border border-gold/60 px-2 py-0.5 text-xs font-semibold text-gold">
-                {JACKPOT_LABEL[pool.jackpotPrize.kind]} · hoy {money(pool.jackpotPrize.cents)}
+                {JACKPOT_LABEL[pool.jackpotPrize.kind]} · hoy {formatMoneyCompact(pool.jackpotPrize.cents)}
               </span>
             ) : (
               <span className="text-muted">Acumulado: hoy no {mine ? "te" : "le"} toca</span>
