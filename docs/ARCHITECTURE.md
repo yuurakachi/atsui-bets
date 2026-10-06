@@ -148,6 +148,14 @@ with `npx supabase db query --linked -f <file>`. Real family data lives in `data
 6. **Admin** — enrollments, payments, on-behalf picks, results, data import, audit log,
    and a ready-to-send WhatsApp reminder naming who still has open picks (never what
    anyone picked).
+7. **Statistics** (`/estadisticas`) — a player's season across every pool they play: total
+   net with a line per monthly meeting, what the next meeting holds, and per pool the
+   standing, the distance to the jackpot positions, points and net round by round, and
+   pick accuracy. Everyone can open anyone's (the names in the season standings link
+   there). It is read-only and built on the standings and settlement numbers
+   (`src/domain/stats.ts`, `src/lib/stats.ts`), read with the viewer's session. Pick
+   accuracy only covers rounds that have picks stored, and the screen says which; charts
+   are plain SVG.
 
 ## Delivery plan
 

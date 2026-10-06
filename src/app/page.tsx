@@ -59,6 +59,19 @@ export default async function HomePage() {
         </section>
       )}
 
+      {pools.length > 0 && (
+        <Link
+          href="/estadisticas"
+          className="mt-8 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent"
+        >
+          <span>
+            <span className="block font-medium">Mis estadísticas</span>
+            <span className="block text-sm text-muted">Cómo vas en todas tus quinielas</span>
+          </span>
+          <span aria-hidden="true" className="text-muted">→</span>
+        </Link>
+      )}
+
       <section className="mt-8">
         <h2>Tus quinielas</h2>
         {pools.length === 0 ? (
