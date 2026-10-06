@@ -109,7 +109,9 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
               >
                 <span className="text-sm text-muted tabular-nums">{row.position}</span>
                 <span className="flex min-w-0 items-center gap-2">
-                  <span className="truncate font-medium">{row.name}</span>
+                  <Link href={`/estadisticas/${row.playerId}/${pool.id}`} className="truncate font-medium hover:text-accent">
+                    {row.name}
+                  </Link>
                   {row.jackpotPrize && (
                     <span
                       title={`Hoy se llevaría ${formatMoney(row.jackpotPrize.cents)} del acumulado`}
