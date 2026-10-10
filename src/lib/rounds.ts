@@ -287,6 +287,15 @@ export async function scoreRound(supabase: Supabase, roundId: string): Promise<b
   ]);
   const playerIds = (enrollments ?? []).map((e) => e.player_id);
 
+  // F1: whoever made no picks repeats their previous lineup. A scheduled job does it right
+  // after the lock; this covers a round scored before that job ran.
+  if (round.pool.sport === "f1") {
+    for (const event of events) {
+      const { error } = await supabase.rpc("fill_missing_f1_picks", { p_event_id: event.id });
+      if (error) throw new Error(error.message);
+    }
+  }
+
   const scoring =
     round.pool.sport === "f1"
       ? await f1Points(supabase, events.map((e) => e.id), playerIds)

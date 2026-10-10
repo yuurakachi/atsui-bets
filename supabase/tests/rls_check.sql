@@ -13,6 +13,7 @@ declare
   admin_id uuid; sub_id uuid; p_id uuid; q_id uuid; grandma_id uuid;
   liga uuid; f1 uuid; r1 uuid; r_f1 uuid; e_open uuid; e_locked uuid;
   f1_open uuid; f1_locked uuid; d1 uuid; d2 uuid; d3 uuid; d_other uuid;
+  r_prev uuid; r_next uuid; f1_prev uuid; f1_next uuid;
   n int;
   ok boolean;
   report text := '';
@@ -325,6 +326,47 @@ begin
   report := report || format(E'\n%s unregistered user sees no picks (saw %s)', case when n = 0 then 'PASS' else 'FAIL' end, n);
   if n <> 0 then failures := failures + 1; end if;
 
+  reset role;
+
+  -- F1: a player without picks at the lock repeats their previous lineup -------------------
+  insert into public.enrollments (pool_id, player_id) values (f1, grandma_id);
+  insert into public.rounds (pool_id, name, kind, ordinal) values (f1, 'GP3', 'gp', 3) returning id into r_prev;
+  insert into public.rounds (pool_id, name, kind, ordinal) values (f1, 'GP4', 'gp', 4) returning id into r_next;
+  insert into public.events (round_id, name, starts_at, lock_at)
+    values (r_prev, 'GP3', now() - interval '7 days', now() - interval '8 days') returning id into f1_prev;
+  insert into public.events (round_id, name, starts_at, lock_at)
+    values (r_next, 'GP4', now() - interval '1 hour', now() - interval '2 hours') returning id into f1_next;
+  insert into public.f1_picks (event_id, player_id, position, driver_id, entered_by) values
+    (f1_prev, p_id, 1, d1, p_id), (f1_prev, p_id, 2, d3, p_id);
+
+  n := public.fill_missing_f1_picks(f1_next);
+  ok := n = 1 and (
+    select array_agg(driver_id order by position) = array[d1, d3] and bool_and(copied_from_event_id = f1_prev)
+    from public.f1_picks where event_id = f1_next and player_id = p_id);
+  report := report || format(E'\n%s missing F1 picks repeat the previous lineup (%s filled)', case when ok then 'PASS' else 'FAIL' end, n);
+  if not ok then failures := failures + 1; end if;
+
+  select count(*) into n from public.f1_picks where event_id = f1_next and player_id = grandma_id;
+  report := report || format(E'\n%s nothing is repeated for a player with no earlier picks', case when n = 0 then 'PASS' else 'FAIL' end);
+  if n <> 0 then failures := failures + 1; end if;
+
+  n := public.fill_missing_f1_picks(f1_next) + public.fill_missing_f1_picks(f1_open);
+  ok := n = 0 and not exists (select 1 from public.f1_picks where event_id = f1_open and player_id = grandma_id);
+  report := report || format(E'\n%s repeating again or before the lock changes nothing', case when ok then 'PASS' else 'FAIL' end);
+  if not ok then failures := failures + 1; end if;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin
+    perform public.save_f1_picks(f1_next, p_id, array[d1, d2]);
+    ok := (select array_agg(driver_id order by position) = array[d1, d2]
+                  and bool_and(copied_from_event_id is null and entered_by = admin_id)
+           from public.f1_picks where event_id = f1_next and player_id = p_id);
+    report := report || format(E'\n%s a pick entered by hand replaces the repeated one', case when ok then 'PASS' else 'FAIL' end);
+    if not ok then failures := failures + 1; end if;
+  exception when others then
+    report := report || E'\nFAIL a pick entered by hand replaces the repeated one: ' || sqlerrm; failures := failures + 1;
+  end;
   reset role;
 
   raise exception E'RLS CHECK: % failure(s)%', failures, report;

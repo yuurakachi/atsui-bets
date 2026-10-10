@@ -18,7 +18,8 @@ Terminology:
   whole season. Nobody joins mid-season; they wait for the next one.
 - Every enrolled participant **pays every round**, whether or not they submit picks.
 - Missing picks score 0 points, but the participant still counts in the standings
-  (including for the second-to-last prize).
+  (including for the second-to-last prize). In F1, a participant who forgets repeats
+  their previous lineup instead (§3).
 - Different pools can have different participants. A person may play one, two or all
   three sports.
 
@@ -59,6 +60,13 @@ All times are **America/Mexico_City**.
 
 While the F1 calendar doesn't have that session's time yet, the lock is Friday 15:00 of
 the race weekend (Thursday 15:00 on Sprint weekends), and moves once the time is known.
+
+**F1 only — forgotten picks.** A participant who has made **no picks at all** for a
+round when it locks gets the same P1–P10 as in their most recent earlier round with
+picks (a Sprint counts, so on a Sprint weekend the GP repeats that weekend's Sprint).
+It never replaces picks made on time, even incomplete ones; a participant with no
+earlier picks stays without picks. The repeated lineup is marked as such for everyone
+to see, and an admin can still replace it by entering the participant's picks.
 
 Other participants' picks are hidden until the pick is locked.
 

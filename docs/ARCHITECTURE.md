@@ -58,7 +58,8 @@ events              id, round_id, external_id, name, home_team, away_team,
 f1_drivers          id, season, code, name, team, active
 f1_classification   event_id, position, driver_id
 match_picks         event_id, player_id, selection, entered_by, updated_at
-f1_picks            event_id, player_id, position (1–10), driver_id, entered_by, updated_at
+f1_picks            event_id, player_id, position (1–10), driver_id, entered_by, updated_at,
+                    copied_from_event_id                     -- set when the lineup was repeated
 round_results       round_id, player_id, points, position, prize_cents
 audit_log           id, actor_id, action, entity, entity_id, payload, created_at
 ```
@@ -90,6 +91,12 @@ Notes:
   cancelled race and renumbers the rest. It never removes a round: an admin marks a
   cancelled race's round as `cancelled`, which keeps its picks, takes it out of picks,
   reminders and money, and stops the calendar from creating it again.
+- **Forgotten F1 picks**: `fill_missing_f1_picks` gives every enrolled player without
+  picks in a locked round the lineup of their previous round. A `pg_cron` job runs it
+  every 5 minutes, and scoring runs it too, so it never depends on the job. The copies
+  carry `copied_from_event_id` and are written to the audit log. `f1_picks` therefore
+  references `events` twice: a query that embeds one in the other must name the
+  relationship (`events!f1_picks_event_id_fkey`), or PostgREST rejects it as ambiguous.
 - F1 picks and classifications are written through `save_f1_picks` and
   `save_f1_classification`, which replace the whole ordered list in one transaction
   (so a driver can move between positions) and run as the caller, under row level

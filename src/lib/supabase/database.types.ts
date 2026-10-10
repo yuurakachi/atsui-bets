@@ -194,6 +194,7 @@ export type Database = {
       }
       f1_picks: {
         Row: {
+          copied_from_event_id: string | null
           driver_id: string
           entered_by: string
           event_id: string
@@ -202,6 +203,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          copied_from_event_id?: string | null
           driver_id: string
           entered_by: string
           event_id: string
@@ -210,6 +212,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          copied_from_event_id?: string | null
           driver_id?: string
           entered_by?: string
           event_id?: string
@@ -218,6 +221,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "f1_picks_copied_from_event_id_fkey"
+            columns: ["copied_from_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "f1_picks_driver_id_fkey"
             columns: ["driver_id"]
@@ -585,6 +595,7 @@ export type Database = {
       }
       current_player_id: { Args: never; Returns: string }
       event_is_locked: { Args: { p_event_id: string }; Returns: boolean }
+      fill_missing_f1_picks: { Args: { p_event_id?: string }; Returns: number }
       is_admin: { Args: never; Returns: boolean }
       is_any_pool_admin: { Args: never; Returns: boolean }
       is_enrolled: {

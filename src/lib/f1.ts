@@ -215,6 +215,8 @@ export interface F1RoundDetail {
   players: { id: string; name: string }[];
   /** Picks this player may see, by player: driver ids P1–P10, null where empty. */
   picks: Record<string, (string | null)[]>;
+  /** Players who made no picks before the lock and repeat their previous lineup. */
+  repeated: string[];
   /** Official classification (driver ids by position), empty until recorded. */
   classification: string[];
   /** On a Sprint weekend's GP: the Sprint picks this player may see, to copy them. */
@@ -244,10 +246,13 @@ export const getF1RoundDetail = cache(async (poolId: string, roundId: string): P
   if (round?.pool?.sport !== "f1" || (round.kind !== "gp" && round.kind !== "sprint")) return null;
 
   const event = round.events[0];
-  const [drivers, { data: enrollments }, picks, { data: classification }, { data: sprint }] = await Promise.all([
+  const [drivers, { data: enrollments }, picks, { data: repeated }, { data: classification }, { data: sprint }] = await Promise.all([
     getF1Drivers(round.pool.season),
     supabase.from("enrollments").select("player:players(id, display_name, nickname)").eq("pool_id", poolId),
     event ? picksOf(supabase, event.id) : {},
+    event
+      ? supabase.from("f1_picks").select("player_id").eq("event_id", event.id).not("copied_from_event_id", "is", null)
+      : { data: [] },
     event
       ? supabase.from("f1_classification").select("position, driver_id").eq("event_id", event.id).order("position")
       : { data: [] },
@@ -278,6 +283,7 @@ export const getF1RoundDetail = cache(async (poolId: string, roundId: string): P
       .flatMap((e) => (e.player ? [{ id: e.player.id, name: playerName(e.player) }] : []))
       .sort((a, b) => a.name.localeCompare(b.name)),
     picks,
+    repeated: [...new Set((repeated ?? []).map((p) => p.player_id))],
     classification: (classification ?? []).map((c) => c.driver_id),
     sprintPicks: sprintEvent ? await picksOf(supabase, sprintEvent.id) : null,
   };

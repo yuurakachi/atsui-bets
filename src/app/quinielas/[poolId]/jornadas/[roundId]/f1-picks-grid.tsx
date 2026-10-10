@@ -15,10 +15,11 @@ export function F1PicksGrid({ round, currentPlayerId }: { round: F1RoundDetail; 
   const code = new Map(round.drivers.map((d) => [d.id, d.code]));
   const official = round.classification;
   const scored = official.length >= F1_PICK_POSITIONS;
+  const repeated = new Set(round.repeated);
   const rows = round.players
     .map((player) => {
       const pick = round.picks[player.id] ?? [];
-      return { ...player, pick, points: scored ? scoreF1Pick(pick, official) : null };
+      return { ...player, pick, repeated: repeated.has(player.id), points: scored ? scoreF1Pick(pick, official) : null };
     })
     .sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || a.name.localeCompare(b.name));
 
@@ -61,7 +62,10 @@ export function F1PicksGrid({ round, currentPlayerId }: { round: F1RoundDetail; 
               }`}
               style={{ gridTemplateColumns: COLUMNS }}
             >
-              <span className={`${STICKY} truncate font-sans text-sm font-medium`}>{row.name}</span>
+              <span className={`${STICKY} truncate font-sans text-sm font-medium`}>
+                {row.name}
+                {row.repeated && <span title="Repitió su alineación anterior"> ↻</span>}
+              </span>
               {POSITIONS.map((i) => {
                 const driver = row.pick[i];
                 const hit = scored && driver != null && driver === official[i];
@@ -82,6 +86,9 @@ export function F1PicksGrid({ round, currentPlayerId }: { round: F1RoundDetail; 
         </div>
       </div>
       {!scored && <p className="mt-2 text-xs text-muted">Falta la clasificación oficial.</p>}
+      {repeated.size > 0 && (
+        <p className="mt-2 text-xs text-muted">↻ No hizo pics a tiempo: se repitió su alineación anterior.</p>
+      )}
     </section>
   );
 }
