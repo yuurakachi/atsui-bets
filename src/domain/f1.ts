@@ -2,17 +2,14 @@
  * F1 season calendar: every race weekend becomes one round (GP), or two on Sprint
  * weekends (Sprint and GP). See docs/RULES.md §2–3.
  */
-import { f1RoundLock } from "./deadlines";
+import { f1RoundLock, type F1WeekendSessions } from "./deadlines";
 import { localDateOf, MONDAY, previousOrSame, zonedTime } from "./time";
 
-export interface F1Race {
+export interface F1Race extends F1WeekendSessions {
   /** Championship round number, 1-based. */
   round: number;
   /** Short place name shown in the app, e.g. "Singapur". */
   place: string;
-  raceStart: Date;
-  /** Start of the Sprint race, or null on a regular weekend. */
-  sprintStart: Date | null;
 }
 
 export type F1RoundKind = "sprint" | "gp";
@@ -80,8 +77,7 @@ export function f1SeasonRounds(races: readonly F1Race[]): F1RoundPlan[] {
   return [...races]
     .sort((a, b) => a.round - b.round)
     .flatMap((race) => {
-      const sprintWeekend = race.sprintStart !== null;
-      const lockAt = f1RoundLock(race.raceStart, sprintWeekend);
+      const lockAt = f1RoundLock(race);
       const gp: F1RoundPlan = {
         kind: "gp",
         ordinal: f1RoundOrdinal(race.round, "gp"),

@@ -79,13 +79,22 @@ interface JResult {
   Constructor?: { name: string };
 }
 
+interface JSession {
+  date: string;
+  time?: string;
+}
+
 interface JRace {
   season: string;
   round: string;
   raceName: string;
   date: string;
   time?: string;
-  Sprint?: { date: string; time?: string };
+  Sprint?: JSession;
+  ThirdPractice?: JSession;
+  SprintQualifying?: JSession;
+  /** What Sprint Qualifying was called in 2023. */
+  SprintShootout?: JSession;
   Results?: JResult[];
   SprintResults?: JResult[];
 }
@@ -107,12 +116,17 @@ export function driverCode(driver: JDriver): string {
 
 const driverName = (driver: JDriver) => `${driver.givenName} ${driver.familyName}`;
 
+/** A session picks lock before: only when Jolpica has its time, a date alone isn't enough. */
+const timed = (session?: JSession) => (session?.time ? instant(session.date, session.time) : null);
+
 export function parseSchedule(json: JResponse): F1Race[] {
   return (json.MRData.RaceTable?.Races ?? []).map((race) => ({
     round: Number(race.round),
     place: PLACES[race.raceName] ?? race.raceName.replace(/ Grand Prix$/, ""),
     raceStart: instant(race.date, race.time),
     sprintStart: race.Sprint ? instant(race.Sprint.date, race.Sprint.time) : null,
+    thirdPracticeStart: timed(race.ThirdPractice),
+    sprintQualifyingStart: timed(race.SprintQualifying ?? race.SprintShootout),
   }));
 }
 

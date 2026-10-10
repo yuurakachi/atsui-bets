@@ -54,8 +54,11 @@ All times are **America/Mexico_City**.
 |---|---|
 | Liga MX | Whole round locks at 23:59 the day **before** the round's first match |
 | NFL | Each game locks individually 5 minutes before kickoff |
-| F1, Sprint weekend | Sprint and GP picks both lock **Thursday 15:00** |
-| F1, regular weekend | GP picks lock **Friday 15:00** |
+| F1, Sprint weekend | Sprint and GP picks both lock **5 minutes before Sprint Qualifying** |
+| F1, regular weekend | GP picks lock **5 minutes before the third practice** |
+
+While the F1 calendar doesn't have that session's time yet, the lock is Friday 15:00 of
+the race weekend (Thursday 15:00 on Sprint weekends), and moves once the time is known.
 
 Other participants' picks are hidden until the pick is locked.
 

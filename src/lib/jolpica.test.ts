@@ -16,8 +16,15 @@ describe("parseSchedule", () => {
               date: "2026-10-11",
               time: "12:00:00Z",
               Sprint: { date: "2026-10-10", time: "09:00:00Z" },
+              SprintQualifying: { date: "2026-10-09", time: "12:30:00Z" },
             },
-            { season: "2026", round: "20", raceName: "Mystery Grand Prix", date: "2026-10-25" },
+            {
+              season: "2026",
+              round: "20",
+              raceName: "Mystery Grand Prix",
+              date: "2026-10-25",
+              ThirdPractice: { date: "2026-10-24", time: "17:30:00Z" },
+            },
           ],
         },
       },
@@ -28,9 +35,29 @@ describe("parseSchedule", () => {
         place: "Singapur",
         raceStart: new Date("2026-10-11T12:00:00Z"),
         sprintStart: new Date("2026-10-10T09:00:00Z"),
+        thirdPracticeStart: null,
+        sprintQualifyingStart: new Date("2026-10-09T12:30:00Z"),
       },
-      { round: 20, place: "Mystery", raceStart: new Date("2026-10-25T12:00:00Z"), sprintStart: null },
+      {
+        round: 20,
+        place: "Mystery",
+        raceStart: new Date("2026-10-25T12:00:00Z"),
+        sprintStart: null,
+        thirdPracticeStart: new Date("2026-10-24T17:30:00Z"),
+        sprintQualifyingStart: null,
+      },
     ]);
+  });
+
+  it("leaves out a session that has a date but no time yet", () => {
+    const [race] = parseSchedule({
+      MRData: {
+        RaceTable: {
+          Races: [{ season: "2026", round: "20", raceName: "Mystery Grand Prix", date: "2026-10-25", ThirdPractice: { date: "2026-10-24" } }],
+        },
+      },
+    });
+    expect(race.thirdPracticeStart).toBeNull();
   });
 
   it("names relocated and renamed races the way the family does", () => {

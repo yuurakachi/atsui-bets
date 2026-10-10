@@ -257,7 +257,7 @@ function validSeason(data: unknown, season: string): data is F1SeasonData {
         Number.isInteger(r?.round) &&
         typeof r.place === "string" &&
         isDate(r.raceStart) &&
-        (r.sprintStart === null || isDate(r.sprintStart)),
+        [r.sprintStart, r.thirdPracticeStart, r.sprintQualifyingStart].every((s) => s == null || isDate(s)),
     ) &&
     Array.isArray(d.drivers) &&
     d.drivers.length <= 60 &&
@@ -304,7 +304,9 @@ export async function loadF1Season(poolId: string, fromBrowser?: F1SeasonData): 
       races: data.races.map((r) => ({
         ...r,
         raceStart: new Date(r.raceStart),
-        sprintStart: r.sprintStart && new Date(r.sprintStart),
+        sprintStart: r.sprintStart ? new Date(r.sprintStart) : null,
+        thirdPracticeStart: r.thirdPracticeStart ? new Date(r.thirdPracticeStart) : null,
+        sprintQualifyingStart: r.sprintQualifyingStart ? new Date(r.sprintQualifyingStart) : null,
       })),
     });
     revalidatePath(`/quinielas/${poolId}`, "layout");
