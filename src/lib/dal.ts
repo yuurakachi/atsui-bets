@@ -32,6 +32,21 @@ export const canManagePool = cache(async (poolId: string): Promise<boolean> => {
 });
 
 /**
+ * Ids of the players who let the current one enter their picks in this pool. A delegate
+ * plays by the player's rules: only before the lock. The database enforces the same rule.
+ */
+export const getPickDelegators = cache(async (poolId: string): Promise<string[]> => {
+  const player = await requirePlayer();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("pick_delegates")
+    .select("player_id")
+    .eq("pool_id", poolId)
+    .eq("delegate_id", player.id);
+  return (data ?? []).map((d) => d.player_id);
+});
+
+/**
  * The registered player behind the session. Accounts that aren't linked to a player
  * (their email was never registered by an admin) go to /sin-acceso.
  */

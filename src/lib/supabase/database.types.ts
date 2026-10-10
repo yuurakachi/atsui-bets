@@ -294,6 +294,46 @@ export type Database = {
           },
         ]
       }
+      pick_delegates: {
+        Row: {
+          delegate_id: string
+          player_id: string
+          pool_id: string
+        }
+        Insert: {
+          delegate_id: string
+          player_id: string
+          pool_id: string
+        }
+        Update: {
+          delegate_id?: string
+          player_id?: string
+          pool_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pick_delegates_delegate_id_fkey"
+            columns: ["delegate_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pick_delegates_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pick_delegates_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       players: {
         Row: {
           created_at: string
@@ -536,7 +576,11 @@ export type Database = {
         Returns: boolean
       }
       check_f1_order: {
-        Args: { p_driver_ids: string[]; p_event_id: string; p_positions: number }
+        Args: {
+          p_driver_ids: string[]
+          p_event_id: string
+          p_positions: number
+        }
         Returns: undefined
       }
       current_player_id: { Args: never; Returns: string }
@@ -544,6 +588,10 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_any_pool_admin: { Args: never; Returns: boolean }
       is_enrolled: {
+        Args: { p_player_id: string; p_pool_id: string }
+        Returns: boolean
+      }
+      is_pick_delegate: {
         Args: { p_player_id: string; p_pool_id: string }
         Returns: boolean
       }
@@ -555,7 +603,11 @@ export type Database = {
         Returns: undefined
       }
       save_f1_picks: {
-        Args: { p_driver_ids: string[]; p_event_id: string; p_player_id: string }
+        Args: {
+          p_driver_ids: string[]
+          p_event_id: string
+          p_player_id: string
+        }
         Returns: undefined
       }
     }

@@ -22,8 +22,10 @@ interface Props {
   now: number;
   events: PickEvent[];
   currentPlayerId: string;
-  /** Present only for the pool's admins: whose picks they're entering. */
+  /** Present when they can enter picks for someone else: the players to choose from. */
   players?: { id: string; name: string }[];
+  /** The pool's admins can also enter picks after the lock. */
+  afterLock: boolean;
   picks: Record<string, Record<string, MatchOutcome>>;
 }
 
@@ -35,7 +37,17 @@ const kickoff = new Intl.DateTimeFormat("es-MX", {
   minute: "2-digit",
 });
 
-export function PickForm({ poolId, roundId, nfl, now: renderedAt, events, currentPlayerId, players, picks: initial }: Props) {
+export function PickForm({
+  poolId,
+  roundId,
+  nfl,
+  now: renderedAt,
+  events,
+  currentPlayerId,
+  players,
+  afterLock,
+  picks: initial,
+}: Props) {
   const allowDraw = !nfl;
   // Games lock one by one while the page is open.
   const [now, setNow] = useState(renderedAt);
@@ -43,7 +55,10 @@ export function PickForm({ poolId, roundId, nfl, now: renderedAt, events, curren
     const timer = setInterval(() => setNow(Date.now()), 20_000);
     return () => clearInterval(timer);
   }, []);
-  const [playerId, setPlayerId] = useState(currentPlayerId);
+  // Someone who doesn't play this pool starts on the first player they can pick for.
+  const [playerId, setPlayerId] = useState(
+    players && !players.some((p) => p.id === currentPlayerId) ? players[0].id : currentPlayerId,
+  );
   const [picks, setPicks] = useState(initial);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +142,7 @@ export function PickForm({ poolId, roundId, nfl, now: renderedAt, events, curren
 
       <ol className="mt-3 space-y-3">
         {events.map((event, i) => {
-          const locked = Date.parse(event.lockAt) <= now && !players;
+          const locked = Date.parse(event.lockAt) <= now && !afterLock;
           return (
             <li key={event.id} className="rounded-xl border border-border bg-surface p-3">
               <p className="mb-2 flex justify-between text-xs text-muted">

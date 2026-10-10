@@ -147,6 +147,8 @@ are paid out, and the rest is kept for the pool's jackpot.
 | Admin | Everything, including naming and removing sub-admins |
 | Sub-admin | Manage **their assigned pool**: enrollments, results, entering picks on behalf of a participant, and closing its monthly settlement |
 | Participant | Submit their own picks, view standings and money |
+| Delegate | Submit the picks of a participant who let them (a couple, for instance), in that pool and only before the lock. The admin or the pool's sub-admin sets it up |
 
 Every admin action (pick entered on someone's behalf, result corrected, payment
-recorded, period settled) is written to the audit log with who and when.
+recorded, period settled) is written to the audit log with who and when. So is every
+pick a delegate enters.

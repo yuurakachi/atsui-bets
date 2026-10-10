@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { canManagePool, requirePlayer } from "@/lib/dal";
+import { canManagePool, getPickDelegators, requirePlayer } from "@/lib/dal";
 import { getPoolOverview } from "@/lib/pools";
 import { getRoundDetail } from "@/lib/rounds";
 import type { MatchOutcome } from "@/domain";
@@ -23,10 +23,11 @@ const title = (name: string) => name.replace(/^J(\d+)$/, "Jornada $1");
 export default async function RoundPage({ params }: PageProps<"/quinielas/[poolId]/jornadas/[roundId]">) {
   const { poolId, roundId } = await params;
   const player = await requirePlayer();
-  const [pool, detail, manager] = await Promise.all([
+  const [pool, detail, manager, delegators] = await Promise.all([
     getPoolOverview(poolId),
     getRoundDetail(poolId, roundId),
     canManagePool(poolId),
+    getPickDelegators(poolId),
   ]);
   if (pool.sport === "f1") {
     return <F1Round pool={pool} roundId={roundId} currentPlayerId={player.id} manager={manager} />;
@@ -38,6 +39,11 @@ export default async function RoundPage({ params }: PageProps<"/quinielas/[poolI
     const picks: Record<string, Record<string, MatchOutcome>> = {};
     for (const p of detail.picks) (picks[p.playerId] ??= {})[p.eventId] = p.selection;
     const enrolled = detail.players.some((p) => p.id === player.id);
+    // Whose picks this player can enter: everyone's for the pool's admins, otherwise
+    // their own and those of whoever let them.
+    const pickFor = manager
+      ? detail.players
+      : detail.players.filter((p) => p.id === player.id || delegators.includes(p.id));
     const firstLock = new Date(Math.min(...detail.events.map((e) => e.lockAt.getTime())));
     const now = new Date();
     const sameLock = detail.events.every((e) => e.lockAt.getTime() === firstLock.getTime());
@@ -66,14 +72,15 @@ export default async function RoundPage({ params }: PageProps<"/quinielas/[poolI
         )}
 
         <div className="mt-6">
-          {enrolled || manager ? (
+          {enrolled || pickFor.length > 0 ? (
             <PickForm
               poolId={pool.id}
               roundId={detail.id}
               nfl={detail.sport === "nfl"}
               now={now.getTime()}
               currentPlayerId={player.id}
-              players={manager ? detail.players : undefined}
+              players={manager || pickFor.length > 1 || !enrolled ? pickFor : undefined}
+              afterLock={manager}
               picks={picks}
               events={detail.events.filter((e) => e.result !== "void").map((e) => ({
                 id: e.id,

@@ -37,6 +37,8 @@ begin
   insert into public.pools (sport, season, name, status) values ('nfl', 'TEST', 'NFL TEST', 'upcoming');
   insert into public.pool_admins values (liga, sub_id);
   insert into public.enrollments (pool_id, player_id) values (liga, p_id), (liga, q_id), (liga, grandma_id), (liga, sub_id), (f1, p_id);
+  -- Q may enter Grandma's picks.
+  insert into public.pick_delegates (pool_id, player_id, delegate_id) values (liga, grandma_id, q_id);
 
   insert into public.rounds (pool_id, name, kind, ordinal) values (liga, 'J1', 'matchday', 1) returning id into r1;
   insert into public.rounds (pool_id, name, kind, ordinal) values (f1, 'GP1', 'gp', 1) returning id into r_f1;
@@ -267,6 +269,47 @@ begin
   get diagnostics n = row_count;
   report := report || format(E'\n%s admin manages sub-admins', case when n = 1 then 'PASS' else 'FAIL' end);
   if n <> 1 then failures := failures + 1; end if;
+
+  reset role;
+
+  -- Player Q, who may enter Grandma's picks ---------------------------------------------
+  perform set_config('request.jwt.claims', json_build_object('sub', u_q, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+
+  begin
+    insert into public.match_picks (event_id, player_id, selection, entered_by) values (e_open, grandma_id, 'away', q_id)
+      on conflict (event_id, player_id) do update set selection = excluded.selection, entered_by = excluded.entered_by;
+    report := report || E'\nPASS delegate enters an open pick for their player';
+  exception when others then
+    report := report || E'\nFAIL delegate enters an open pick for their player: ' || sqlerrm; failures := failures + 1;
+  end;
+
+  select count(*) into n from public.match_picks where player_id = grandma_id and event_id = e_open and selection = 'away';
+  report := report || format(E'\n%s delegate sees their player''s open pick (saw %s)', case when n = 1 then 'PASS' else 'FAIL' end, n);
+  if n <> 1 then failures := failures + 1; end if;
+
+  begin
+    insert into public.match_picks (event_id, player_id, selection, entered_by) values (e_locked, grandma_id, 'home', q_id)
+      on conflict (event_id, player_id) do update set selection = excluded.selection, entered_by = excluded.entered_by;
+    report := report || E'\nFAIL delegate picked a locked match'; failures := failures + 1;
+  exception when others then
+    report := report || E'\nPASS delegate cannot pick a locked match';
+  end;
+
+  begin
+    insert into public.match_picks (event_id, player_id, selection, entered_by) values (e_open, p_id, 'away', q_id)
+      on conflict (event_id, player_id) do update set selection = excluded.selection, entered_by = excluded.entered_by;
+    report := report || E'\nFAIL delegate picked for a player who didn''t delegate'; failures := failures + 1;
+  exception when others then
+    report := report || E'\nPASS delegate cannot pick for anyone else';
+  end;
+
+  begin
+    insert into public.pick_delegates (pool_id, player_id, delegate_id) values (liga, p_id, q_id);
+    report := report || E'\nFAIL player made themselves someone''s delegate'; failures := failures + 1;
+  exception when others then
+    report := report || E'\nPASS players cannot name delegates';
+  end;
 
   reset role;
 

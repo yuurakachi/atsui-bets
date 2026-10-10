@@ -48,6 +48,7 @@ players             id, display_name, nickname, email, user_id → auth.users, i
 pools               id, sport (liga_mx | nfl | f1), season, status, entry_fee_cents,
                     jackpot_opening_cents
 pool_admins         pool_id, player_id                       -- sub-admins per pool
+pick_delegates      pool_id, player_id, delegate_id          -- who may enter whose picks
 enrollments         pool_id, player_id                       -- season-long membership
 settlement_periods  id, pool_id, cutoff_at, settled_at, settled_by   -- one set per pool
 rounds              id, pool_id, name, kind (matchday | week | gp | sprint), ordinal,
@@ -71,8 +72,8 @@ Notes:
 - **Every event has its own `lock_at`**, computed by `src/domain/deadlines.ts`. For
   Liga MX all events of a matchday share it; for NFL each game has its own. This keeps
   the pick permissions identical for every sport.
-- `entered_by` differs from `player_id` when an admin enters a pick on someone's
-  behalf; those picks are audited.
+- `entered_by` differs from `player_id` when an admin or the player's delegate enters a
+  pick on their behalf; those picks are audited.
 - `round_results` and the round's pot/jackpot are derived from picks and results, but
   stored so history is fast to read and past seasons can be imported without picks.
 - Imported rounds from before the app existed have results but no events or picks.
@@ -102,6 +103,8 @@ Enforced in Postgres, so they hold no matter which client talks to the database.
 - Players read their own picks at any time and others' picks only after the lock.
 - Players write only their own picks, only in pools they're enrolled in, and only
   before the lock.
+- A delegate (`pick_delegates`) reads and writes one player's picks in one pool, under
+  that player's rules: only before the lock. Pool admins name delegates.
 - Sub-admins write enrollments, rounds, events, results and on-behalf picks only for
   the pools they manage, and can add players.
 - Sub-admins also create and close their pool's settlement periods.
