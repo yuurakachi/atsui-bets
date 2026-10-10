@@ -217,7 +217,8 @@ export const getPickStats = cache(async (playerId: string, poolId: string): Prom
   const { data: picks } = roundIds.length
     ? await supabase
         .from("f1_picks")
-        .select("position, driver_id, event:events!inner(id, round_id)")
+        // Named relationship: picks also point at the round they were repeated from.
+        .select("position, driver_id, event:events!f1_picks_event_id_fkey!inner(id, round_id)")
         .eq("player_id", playerId)
         .in("event.round_id", roundIds)
     : { data: [] };
