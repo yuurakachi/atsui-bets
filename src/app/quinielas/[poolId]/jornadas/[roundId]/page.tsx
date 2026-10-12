@@ -30,7 +30,7 @@ export default async function RoundPage({ params }: PageProps<"/quinielas/[poolI
     getPickDelegators(poolId),
   ]);
   if (pool.sport === "f1") {
-    return <F1Round pool={pool} roundId={roundId} currentPlayerId={player.id} manager={manager} />;
+    return <F1Round pool={pool} roundId={roundId} currentPlayerId={player.id} manager={manager} delegators={delegators} />;
   }
   if (!detail) notFound();
   const round = pool.rounds.find((r) => r.id === roundId);

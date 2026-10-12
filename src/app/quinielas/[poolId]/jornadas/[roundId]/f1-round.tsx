@@ -21,16 +21,23 @@ interface Props {
   roundId: string;
   currentPlayerId: string;
   manager: boolean;
+  /** Players who let the current one enter their picks. */
+  delegators: string[];
 }
 
 /** An F1 Sprint or GP: P1–P10 picks until the lock, then everyone's picks and the result. */
-export async function F1Round({ pool, roundId, currentPlayerId, manager }: Props) {
+export async function F1Round({ pool, roundId, currentPlayerId, manager, delegators }: Props) {
   const detail = await getF1RoundDetail(pool.id, roundId);
   if (!detail) notFound();
   const scored = pool.rounds.find((r) => r.id === roundId);
   const locked = !detail.event || detail.event.lockAt <= new Date();
   const enrolled = detail.players.some((p) => p.id === currentPlayerId);
   const cancelled = detail.status === "cancelled";
+  // Whose picks this player can enter: everyone's for the pool's admins, otherwise
+  // their own and those of whoever let them.
+  const pickFor = manager
+    ? detail.players
+    : detail.players.filter((p) => p.id === currentPlayerId || delegators.includes(p.id));
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
@@ -60,14 +67,15 @@ export async function F1Round({ pool, roundId, currentPlayerId, manager }: Props
 
       {!scored && !cancelled && (!locked || manager) && (
         <div className="mt-6">
-          {enrolled || manager ? (
+          {pickFor.length > 0 ? (
             <F1PickForm
               poolId={pool.id}
               roundId={detail.id}
               drivers={detail.drivers}
               locked={locked}
               currentPlayerId={currentPlayerId}
-              players={manager ? detail.players : undefined}
+              players={manager || pickFor.length > 1 || !enrolled ? pickFor : undefined}
+              afterLock={manager}
               picks={detail.picks}
               sprintPicks={detail.sprintPicks}
             />

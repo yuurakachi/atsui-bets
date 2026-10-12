@@ -55,7 +55,8 @@ export async function savePick(
 
 /**
  * Saves a whole F1 pick (driver ids for P1–P10, null = empty). Same rules as match
- * picks: players before the lock, the pool's admins for anyone at any time.
+ * picks: players and whoever they let enter their picks before the lock, the pool's
+ * admins for anyone at any time.
  */
 export async function saveF1Picks(
   poolId: string,
@@ -85,7 +86,8 @@ export async function saveF1Picks(
   const locked = new Date(event.lock_at) <= new Date();
   const onBehalf = playerId !== player.id;
   const manager = onBehalf || locked ? await canManagePool(poolId) : false;
-  if (onBehalf && !manager) return { ok: false, message: "Solo puedes hacer tus propios pics." };
+  const delegate = onBehalf && !manager ? (await getPickDelegators(poolId)).includes(playerId) : false;
+  if (onBehalf && !manager && !delegate) return { ok: false, message: "Solo puedes hacer tus propios pics." };
   if (locked && !manager) return { ok: false, message: "Los pics de esta carrera ya cerraron." };
 
   const { error } = await supabase.rpc("save_f1_picks", {

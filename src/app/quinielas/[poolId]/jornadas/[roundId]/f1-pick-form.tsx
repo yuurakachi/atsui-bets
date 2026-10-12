@@ -14,8 +14,10 @@ interface Props {
   /** Computed on the server when the page renders. */
   locked: boolean;
   currentPlayerId: string;
-  /** Present only for the pool's admins: whose picks they're entering. */
+  /** Present when this player can enter picks for others (admins, delegates): whose they're entering. */
   players?: { id: string; name: string }[];
+  /** The pool's admins can still enter picks once the round has locked. */
+  afterLock: boolean;
   picks: Record<string, Pick>;
   /** Sprint picks of the same weekend, offered as a starting point for the GP. */
   sprintPicks: Record<string, Pick> | null;
@@ -24,8 +26,11 @@ interface Props {
 const empty = (): Pick => Array.from({ length: F1_PICK_POSITIONS }, () => null);
 
 /** P1–P10 picks, saved automatically after every change. */
-export function F1PickForm({ poolId, roundId, drivers, locked, currentPlayerId, players, picks: initial, sprintPicks }: Props) {
-  const [playerId, setPlayerId] = useState(currentPlayerId);
+export function F1PickForm({ poolId, roundId, drivers, locked, currentPlayerId, players, afterLock, picks: initial, sprintPicks }: Props) {
+  // Someone who isn't enrolled (an admin, a delegate) starts on the first player they can pick for.
+  const [playerId, setPlayerId] = useState(
+    players && !players.some((p) => p.id === currentPlayerId) ? players[0].id : currentPlayerId,
+  );
   const [picks, setPicks] = useState(initial);
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +40,7 @@ export function F1PickForm({ poolId, roundId, drivers, locked, currentPlayerId, 
 
   const mine = picks[playerId] ?? empty();
   const onBehalf = playerId !== currentPlayerId;
-  const readOnly = locked && !players;
+  const readOnly = locked && !afterLock;
   const done = mine.filter(Boolean).length;
   const sprint = sprintPicks?.[playerId];
 
