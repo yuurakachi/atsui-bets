@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requirePlayer } from "@/lib/dal";
-import { getPoolOverview } from "@/lib/pools";
+import { getPoolSeason } from "@/lib/pools";
 import { getPickStats, getPoolStats, getStatsPlayer } from "@/lib/stats";
 import { PoolDetail } from "../../pool-detail";
 
@@ -11,7 +11,7 @@ export default async function PoolStatsPage({ params }: PageProps<"/estadisticas
   const [pool, picks, overview] = await Promise.all([
     getPoolStats(playerId, poolId),
     getPickStats(playerId, poolId),
-    getPoolOverview(poolId),
+    getPoolSeason(poolId),
   ]);
   if (!pool) notFound();
   const players = overview.season.map((row) => ({ id: row.playerId, name: row.name }));

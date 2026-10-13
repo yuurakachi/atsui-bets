@@ -20,7 +20,7 @@ import {
   type StandingSummary,
 } from "@/domain";
 import { playerName } from "./format";
-import { getPoolOverview, type PoolOverview, type SeasonRow } from "./pools";
+import { getPoolSeason, type PoolSeason, type SeasonRow } from "./pools";
 import { createClient } from "./supabase/server";
 
 export interface StatsPlayer {
@@ -81,32 +81,16 @@ export interface PoolStats {
   nextMeeting: NextMeeting | null;
 }
 
-/** The entry fee and the pool's settlement periods: what the pool overview doesn't carry. */
-export interface PoolMoney {
-  entry_fee_cents: Cents;
-  rounds: { id: string; settlement_period_id: string | null }[];
-  settlement_periods: { id: string; cutoff_at: string; settled_at: string | null }[];
-}
-
 /**
  * One player's season in one pool, read with the viewer's session. Built on the same
  * numbers as the standings and the monthly settlement, so the totals always agree.
  * Null if the player isn't enrolled.
  */
 export const getPoolStats = cache(async (playerId: string, poolId: string): Promise<PoolStats | null> => {
-  const supabase = await createClient();
-  const [pool, { data: money }] = await Promise.all([
-    getPoolOverview(poolId),
-    supabase
-      .from("pools")
-      .select("entry_fee_cents, rounds(id, settlement_period_id), settlement_periods(id, cutoff_at, settled_at)")
-      .eq("id", poolId)
-      .maybeSingle(),
-  ]);
-  return money ? buildPoolStats(playerId, pool, money) : null;
+  return buildPoolStats(playerId, await getPoolSeason(poolId));
 });
 
-export function buildPoolStats(playerId: string, pool: PoolOverview, money: PoolMoney): PoolStats | null {
+export function buildPoolStats(playerId: string, pool: PoolSeason): PoolStats | null {
   const row = pool.season.find((r) => r.playerId === playerId);
   const standing = standingSummary(
     pool.season.map((r) => ({ profileId: r.playerId, points: r.points })),
@@ -119,7 +103,7 @@ export function buildPoolStats(playerId: string, pool: PoolOverview, money: Pool
   const history = roundHistory(
     pool.rounds.map((round) => ({
       id: round.id,
-      entryFeeCents: money.entry_fee_cents,
+      entryFeeCents: pool.entryFeeCents,
       scores: enrolled.map((id) => {
         const result = round.results.find((r) => r.playerId === id);
         return {
@@ -142,15 +126,13 @@ export function buildPoolStats(playerId: string, pool: PoolOverview, money: Pool
       position: round.results.find((r) => r.playerId === playerId)?.position ?? line.participants,
     };
   });
-  const periodIdOf = new Map(money.rounds.map((r) => [r.id, r.settlement_period_id]));
-  const periods = new Map(money.settlement_periods.map((p) => [p.id, p]));
-  const periodOf = (roundId: string) => periods.get(periodIdOf.get(roundId) ?? "");
+  const periods = new Map(pool.periods.map((p) => [p.id, p]));
   // The same statement as the pool's settlement screen, from rows already loaded.
   const next = nextMeetingLine(
-    money.settlement_periods.map((p) => ({ id: p.id, cutoffAt: new Date(p.cutoff_at), settled: p.settled_at !== null })),
+    pool.periods,
     pool.rounds.map((round) => ({
-      periodId: periodIdOf.get(round.id) ?? null,
-      entryFeeCents: money.entry_fee_cents,
+      periodId: round.periodId,
+      entryFeeCents: pool.entryFeeCents,
       participantIds: round.results.map((r) => r.playerId),
       wonCents: new Map(round.results.map((r) => [r.playerId, r.prizeCents + r.bonusCents])),
     })),
@@ -169,10 +151,10 @@ export function buildPoolStats(playerId: string, pool: PoolOverview, money: Pool
     rounds,
     summary: summarizeHistory(history),
     money: history.map((line) => {
-      const settlement = periodOf(line.roundId);
+      const period = periods.get(roundOf.get(line.roundId)!.periodId ?? "");
       return {
-        cutoffAt: settlement ? new Date(settlement.cutoff_at) : null,
-        settled: settlement?.settled_at != null,
+        cutoffAt: period?.cutoffAt ?? null,
+        settled: period?.settled ?? false,
         netCents: line.wonCents - line.feeCents,
       };
     }),
@@ -212,7 +194,7 @@ export type PoolPickStats = PickStats & {
  */
 export const getPickStats = cache(async (playerId: string, poolId: string): Promise<PoolPickStats> => {
   const supabase = await createClient();
-  const pool = await getPoolOverview(poolId);
+  const pool = await getPoolSeason(poolId);
   const roundIds = pool.rounds.map((r) => r.id);
   const withPicks = new Set<string>();
   const covered = () => pool.rounds.filter((r) => withPicks.has(r.id)).map((r) => r.name);
