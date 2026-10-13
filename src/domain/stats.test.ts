@@ -3,6 +3,7 @@ import {
   f1PickStats,
   matchPickStats,
   netByMeeting,
+  nextMeetingLine,
   roundHistory,
   standingSummary,
   summarizeHistory,
@@ -190,6 +191,36 @@ describe("netByMeeting", () => {
       { cutoffAt: oct, settled: true, netCents: 800_00 },
     ]);
     expect(meetings.map((m) => [m.cutoffAt, m.cumulativeCents])).toEqual([[oct, 800_00], [null, 700_00]]);
+  });
+});
+
+describe("nextMeetingLine", () => {
+  const sep = { id: "sep", cutoffAt: new Date("2026-09-05T06:00:00Z"), settled: true };
+  const oct = { id: "oct", cutoffAt: new Date("2026-10-03T06:00:00Z"), settled: false };
+  const nov = { id: "nov", cutoffAt: new Date("2026-11-07T06:00:00Z"), settled: false };
+  const played = (periodId: string | null, won: [string, number][] = []) => ({
+    periodId,
+    entryFeeCents: 100_00,
+    participantIds: ["ana", "beto"],
+    wonCents: new Map(won),
+  });
+
+  it("nets the rounds of the oldest period that hasn't been paid", () => {
+    const rounds = [played("sep", [["ana", 150_00]]), played("oct", [["ana", 150_00]]), played("oct"), played("nov")];
+    expect(nextMeetingLine([nov, sep, oct], rounds, "ana")).toEqual({
+      cutoffAt: oct.cutoffAt,
+      line: { profileId: "ana", rounds: 2, owesCents: 200_00, wonCents: 150_00, netCents: -50_00 },
+    });
+    expect(nextMeetingLine([nov, sep, oct], rounds, "beto")?.line.netCents).toBe(-200_00);
+  });
+
+  it("has nothing while that period has no rounds, even if a later one does", () => {
+    expect(nextMeetingLine([oct, nov], [played("nov"), played(null)], "ana")).toBeNull();
+  });
+
+  it("has nothing once every period is paid, or for someone who didn't play", () => {
+    expect(nextMeetingLine([sep], [played("sep")], "ana")).toBeNull();
+    expect(nextMeetingLine([oct], [played("oct")], "caro")).toBeNull();
   });
 });
 

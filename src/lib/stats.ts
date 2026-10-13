@@ -4,6 +4,7 @@ import {
   F1_PICK_POSITIONS,
   f1PickStats,
   matchPickStats,
+  nextMeetingLine,
   orderByPosition,
   roundHistory,
   standingSummary,
@@ -20,7 +21,6 @@ import {
 } from "@/domain";
 import { playerName } from "./format";
 import { getPoolOverview, type PoolOverview, type SeasonRow } from "./pools";
-import { getOpenPeriod, type PeriodStatement } from "./settlement";
 import { createClient } from "./supabase/server";
 
 export interface StatsPlayer {
@@ -81,10 +81,11 @@ export interface PoolStats {
   nextMeeting: NextMeeting | null;
 }
 
-/** The entry fee and the settlement period of each round: what the pool overview doesn't carry. */
+/** The entry fee and the pool's settlement periods: what the pool overview doesn't carry. */
 export interface PoolMoney {
   entry_fee_cents: Cents;
-  rounds: { id: string; period: { cutoff_at: string; settled_at: string | null } | null }[];
+  rounds: { id: string; settlement_period_id: string | null }[];
+  settlement_periods: { id: string; cutoff_at: string; settled_at: string | null }[];
 }
 
 /**
@@ -94,24 +95,18 @@ export interface PoolMoney {
  */
 export const getPoolStats = cache(async (playerId: string, poolId: string): Promise<PoolStats | null> => {
   const supabase = await createClient();
-  const [pool, period, { data: money }] = await Promise.all([
+  const [pool, { data: money }] = await Promise.all([
     getPoolOverview(poolId),
-    getOpenPeriod(poolId),
     supabase
       .from("pools")
-      .select("entry_fee_cents, rounds(id, period:settlement_periods(cutoff_at, settled_at))")
+      .select("entry_fee_cents, rounds(id, settlement_period_id), settlement_periods(id, cutoff_at, settled_at)")
       .eq("id", poolId)
       .maybeSingle(),
   ]);
-  return money ? buildPoolStats(playerId, pool, money, period) : null;
+  return money ? buildPoolStats(playerId, pool, money) : null;
 });
 
-export function buildPoolStats(
-  playerId: string,
-  pool: PoolOverview,
-  money: PoolMoney,
-  period: PeriodStatement | null,
-): PoolStats | null {
+export function buildPoolStats(playerId: string, pool: PoolOverview, money: PoolMoney): PoolStats | null {
   const row = pool.season.find((r) => r.playerId === playerId);
   const standing = standingSummary(
     pool.season.map((r) => ({ profileId: r.playerId, points: r.points })),
@@ -147,8 +142,20 @@ export function buildPoolStats(
       position: round.results.find((r) => r.playerId === playerId)?.position ?? line.participants,
     };
   });
-  const periodOf = new Map(money.rounds.map((r) => [r.id, r.period]));
-  const ownLine = period?.lines.find((l) => l.profileId === playerId);
+  const periodIdOf = new Map(money.rounds.map((r) => [r.id, r.settlement_period_id]));
+  const periods = new Map(money.settlement_periods.map((p) => [p.id, p]));
+  const periodOf = (roundId: string) => periods.get(periodIdOf.get(roundId) ?? "");
+  // The same statement as the pool's settlement screen, from rows already loaded.
+  const next = nextMeetingLine(
+    money.settlement_periods.map((p) => ({ id: p.id, cutoffAt: new Date(p.cutoff_at), settled: p.settled_at !== null })),
+    pool.rounds.map((round) => ({
+      periodId: periodIdOf.get(round.id) ?? null,
+      entryFeeCents: money.entry_fee_cents,
+      participantIds: round.results.map((r) => r.playerId),
+      wonCents: new Map(round.results.map((r) => [r.playerId, r.prizeCents + r.bonusCents])),
+    })),
+    playerId,
+  );
 
   return {
     id: pool.id,
@@ -162,15 +169,14 @@ export function buildPoolStats(
     rounds,
     summary: summarizeHistory(history),
     money: history.map((line) => {
-      const settlement = periodOf.get(line.roundId);
+      const settlement = periodOf(line.roundId);
       return {
         cutoffAt: settlement ? new Date(settlement.cutoff_at) : null,
         settled: settlement?.settled_at != null,
         netCents: line.wonCents - line.feeCents,
       };
     }),
-    nextMeeting:
-      period && ownLine ? { cutoffAt: period.cutoffAt, rounds: ownLine.rounds, netCents: ownLine.netCents } : null,
+    nextMeeting: next && { cutoffAt: next.cutoffAt, rounds: next.line.rounds, netCents: next.line.netCents },
   };
 }
 

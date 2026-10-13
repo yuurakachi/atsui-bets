@@ -4,6 +4,7 @@
  */
 import { JACKPOT_PRIZE_RULES, type PrizeKind } from "./prizes";
 import { F1_PICK_POSITIONS, type F1Pick, type MatchOutcome, type MatchResult } from "./scoring";
+import { buildStatement, type SettledRound, type StatementLine } from "./settlement";
 import { rankEntries, type StandingEntry } from "./standings";
 import { localDateOf } from "./time";
 import type { Cents, ProfileId, Sport } from "./types";
@@ -229,6 +230,35 @@ export function netByMeeting(rounds: readonly RoundMoney[]): MeetingNet[] {
   return [...meetings.values()]
     .sort((a, b) => (a.cutoffAt?.getTime() ?? Infinity) - (b.cutoffAt?.getTime() ?? Infinity))
     .map((meeting) => ({ ...meeting, cumulativeCents: (cumulativeCents += meeting.netCents) }));
+}
+
+export interface MeetingPeriod {
+  id: string;
+  cutoffAt: Date;
+  settled: boolean;
+}
+
+export interface PeriodRound extends SettledRound {
+  /** The period that settles the round; null if it has none yet. */
+  periodId: string | null;
+}
+
+/**
+ * A player's line at the pool's next meeting: the oldest period that hasn't been paid,
+ * with the completed rounds assigned to it (docs/RULES.md §6). Null when that period
+ * has nothing for the player.
+ */
+export function nextMeetingLine(
+  periods: readonly MeetingPeriod[],
+  rounds: readonly PeriodRound[],
+  profileId: ProfileId,
+): { cutoffAt: Date; line: StatementLine } | null {
+  const open = periods
+    .filter((p) => !p.settled)
+    .sort((a, b) => a.cutoffAt.getTime() - b.cutoffAt.getTime())[0];
+  if (!open) return null;
+  const line = buildStatement(rounds.filter((r) => r.periodId === open.id)).find((l) => l.profileId === profileId);
+  return line ? { cutoffAt: open.cutoffAt, line } : null;
 }
 
 export interface Tally {

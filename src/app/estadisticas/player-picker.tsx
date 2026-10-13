@@ -16,7 +16,12 @@ export function PlayerPicker({ options, currentId }: { options: PickerOption[]; 
 
   return (
     <label className="mt-4 block rounded-xl border border-border bg-surface px-4 py-3 text-sm">
-      <span className="text-muted">Viendo a</span>
+      <span className="flex items-baseline justify-between gap-3 text-muted">
+        Viendo a
+        <span aria-live="polite" className="text-xs">
+          {loading && "Cargando…"}
+        </span>
+      </span>
       <select
         defaultValue={currentId}
         onChange={(e) => {
