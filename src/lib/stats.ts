@@ -20,7 +20,7 @@ import {
   type StandingSummary,
 } from "@/domain";
 import { playerName } from "./format";
-import { getPoolSeason, type PoolSeason, type SeasonRow } from "./pools";
+import { getPoolOverview, type PoolOverview, type SeasonRow } from "./pools";
 import { createClient } from "./supabase/server";
 
 export interface StatsPlayer {
@@ -87,10 +87,10 @@ export interface PoolStats {
  * Null if the player isn't enrolled.
  */
 export const getPoolStats = cache(async (playerId: string, poolId: string): Promise<PoolStats | null> => {
-  return buildPoolStats(playerId, await getPoolSeason(poolId));
+  return buildPoolStats(playerId, await getPoolOverview(poolId));
 });
 
-export function buildPoolStats(playerId: string, pool: PoolSeason): PoolStats | null {
+export function buildPoolStats(playerId: string, pool: PoolOverview): PoolStats | null {
   const row = pool.season.find((r) => r.playerId === playerId);
   const standing = standingSummary(
     pool.season.map((r) => ({ profileId: r.playerId, points: r.points })),
@@ -194,7 +194,7 @@ export type PoolPickStats = PickStats & {
  */
 export const getPickStats = cache(async (playerId: string, poolId: string): Promise<PoolPickStats> => {
   const supabase = await createClient();
-  const pool = await getPoolSeason(poolId);
+  const pool = await getPoolOverview(poolId);
   const roundIds = pool.rounds.map((r) => r.id);
   const withPicks = new Set<string>();
   const covered = () => pool.rounds.filter((r) => withPicks.has(r.id)).map((r) => r.name);
