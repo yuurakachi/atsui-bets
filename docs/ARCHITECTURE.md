@@ -161,8 +161,9 @@ with `npx supabase db query --linked -f <file>`. Real family data lives in `data
 7. **Statistics** (`/estadisticas`) — a player's season across every pool they play: total
    net with a line per monthly meeting, what the next meeting holds, and per pool the
    standing, the distance to the jackpot positions, points and net round by round, and
-   pick accuracy. Everyone can open anyone's (the names in the season standings link
-   there). It is read-only and built on the standings and settlement numbers
+   pick accuracy. Everyone can open anyone's: a selector on the screen switches player
+   (staying in the same pool on a pool's detail), and the names in the season standings
+   link there. It is read-only and built on the standings and settlement numbers
    (`src/domain/stats.ts`, `src/lib/stats.ts`), read with the viewer's session. Pick
    accuracy only covers rounds that have picks stored, and the screen says which; charts
    are plain SVG.

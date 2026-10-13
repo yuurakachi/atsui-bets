@@ -3,7 +3,8 @@ import type { Tally } from "@/domain";
 import { formatMoneyCompact, formatNet } from "@/lib/format";
 import type { PoolPickStats, PoolStats, StatsPlayer } from "@/lib/stats";
 import { NetChart, PointsChart, StandingChart } from "./charts";
-import { countRounds, roundNoun, shortRoundLabel, SPORT_LABEL } from "./labels";
+import { countRounds, pickerOptions, roundNoun, shortRoundLabel, SPORT_LABEL } from "./labels";
+import { PlayerPicker } from "./player-picker";
 import { Legend, toneOf } from "./summary";
 
 const oneDecimal = new Intl.NumberFormat("es-MX", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -12,15 +13,20 @@ const listOf = new Intl.ListFormat("es-MX", { type: "conjunction" });
 /** One player's season in one pool: round by round, standing, money and pick accuracy. */
 export function PoolDetail({
   player,
-  mine,
+  viewerId,
+  players,
   pool,
   picks,
 }: {
   player: StatsPlayer;
-  mine: boolean;
+  viewerId: string;
+  /** Everyone who plays this pool: the picker stays in it. */
+  players: StatsPlayer[];
   pool: PoolStats;
   picks: PoolPickStats;
 }) {
+  const mine = player.id === viewerId;
+  const options = pickerOptions(players, player, viewerId, (id) => `/estadisticas/${id}/${pool.id}`);
   const { standing, summary, rounds } = pool;
   const noun = roundNoun(pool.sport);
   const nouns = roundNoun(pool.sport, 2);
@@ -49,6 +55,7 @@ export function PoolDetail({
           Ver quiniela
         </Link>
       </p>
+      {options.length > 1 && <PlayerPicker key={player.id} options={options} currentId={player.id} />}
 
       {rounds.length === 0 ? (
         <p className="mt-6 rounded-xl border border-dashed border-border px-4 py-6 text-center text-muted">

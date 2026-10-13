@@ -1,4 +1,6 @@
 import type { PrizeKind, Sport } from "@/domain";
+import type { StatsPlayer } from "@/lib/stats";
+import type { PickerOption } from "./player-picker";
 
 export const SPORT_LABEL: Record<Sport, string> = {
   liga_mx: "Liga MX",
@@ -26,6 +28,22 @@ export function roundNoun(sport: Sport, count = 1): string {
 /** "3 jornadas", "1 carrera". */
 export function countRounds(sport: Sport, count: number): string {
   return `${count} ${roundNoun(sport, count)}`;
+}
+
+/**
+ * The people the viewer can switch to: themselves first, then everyone else by name.
+ * `current` is always offered, even if they aren't in the list.
+ */
+export function pickerOptions(
+  players: readonly StatsPlayer[],
+  current: StatsPlayer,
+  viewerId: string,
+  href: (playerId: string) => string,
+): PickerOption[] {
+  const all = players.some((p) => p.id === current.id) ? players : [...players, current];
+  return [...all]
+    .sort((a, b) => Number(b.id === viewerId) - Number(a.id === viewerId) || a.name.localeCompare(b.name, "es"))
+    .map((p) => ({ id: p.id, name: p.id === viewerId ? `${p.name} (yo)` : p.name, href: href(p.id) }));
 }
 
 /** A round's name short enough for a chart axis: "J10", "S3", or its number in the season. */

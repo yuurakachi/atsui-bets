@@ -38,6 +38,19 @@ export const getStatsPlayer = cache(async (playerId: string): Promise<StatsPlaye
   return data ? { id: data.id, name: playerName(data) } : null;
 });
 
+/** Everyone enrolled in a pool the viewer can see, by name: whose statistics can be opened. */
+export const getStatsPlayers = cache(async (): Promise<StatsPlayer[]> => {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("enrollments")
+    .select("player:players(id, display_name, nickname), pool:pools(status)");
+  const names = new Map<string, string>();
+  for (const e of data ?? []) {
+    if (e.player && e.pool && e.pool.status !== "upcoming") names.set(e.player.id, playerName(e.player));
+  }
+  return [...names].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+});
+
 export interface StatsRound extends RoundLine {
   name: string;
   /** Position among the round's players. */

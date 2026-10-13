@@ -3,7 +3,8 @@ import { netByMeeting, TIME_ZONE, type StandingSummary } from "@/domain";
 import { formatMoneyCompact, formatNet } from "@/lib/format";
 import type { PoolStats, StatsPlayer } from "@/lib/stats";
 import { NetChart } from "./charts";
-import { countRounds, JACKPOT_LABEL, roundNoun } from "./labels";
+import { countRounds, JACKPOT_LABEL, pickerOptions, roundNoun } from "./labels";
+import { PlayerPicker } from "./player-picker";
 
 const meetingDate = new Intl.DateTimeFormat("es-MX", { timeZone: TIME_ZONE, day: "numeric", month: "short" });
 const meetingMonth = new Intl.DateTimeFormat("es-MX", { timeZone: TIME_ZONE, month: "short" });
@@ -11,7 +12,20 @@ const meetingMonth = new Intl.DateTimeFormat("es-MX", { timeZone: TIME_ZONE, mon
 export const toneOf = (cents: number) => (cents > 0 ? "text-positive" : cents < 0 ? "text-negative" : "");
 
 /** Every pool a player is in: total net, what the next meeting holds, and one card per pool. */
-export function StatsSummary({ player, mine, pools }: { player: StatsPlayer; mine: boolean; pools: PoolStats[] }) {
+export function StatsSummary({
+  player,
+  viewerId,
+  players,
+  pools,
+}: {
+  player: StatsPlayer;
+  viewerId: string;
+  /** Everyone whose statistics can be opened from here. */
+  players: StatsPlayer[];
+  pools: PoolStats[];
+}) {
+  const mine = player.id === viewerId;
+  const options = pickerOptions(players, player, viewerId, (id) => (id === viewerId ? "/estadisticas" : `/estadisticas/${id}`));
   const wonCents = pools.reduce((acc, p) => acc + p.wonCents, 0);
   const paidCents = pools.reduce((acc, p) => acc + p.paidCents, 0);
   const netCents = wonCents - paidCents;
@@ -24,6 +38,7 @@ export function StatsSummary({ player, mine, pools }: { player: StatsPlayer; min
         ← Inicio
       </Link>
       <h1 className="mt-2 text-2xl font-bold">{mine ? "Mis estadísticas" : `Estadísticas de ${player.name}`}</h1>
+      {options.length > 1 && <PlayerPicker key={player.id} options={options} currentId={player.id} />}
 
       {pools.length === 0 ? (
         <p className="mt-6 rounded-xl border border-dashed border-border px-4 py-6 text-center text-muted">
