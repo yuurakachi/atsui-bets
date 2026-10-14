@@ -151,8 +151,9 @@ with `npx supabase db query --linked -f <file>`. Real family data lives in `data
 1. **Home** — pending picks and their deadlines.
 2. **Make picks** — one card per match; F1 is an ordered P1–P10 picker.
 3. **Round** — everyone's picks (after lock), live results, standings and prize leaders.
-   An NFL week shows the picks one kickoff window at a time (Thursday, each Sunday
-   window, Monday) so the table fits a phone; points are always the whole week's.
+   An NFL week is too wide for a phone, so its picks table scrolls sideways between
+   the player's name and their points, which stay in place; it opens on the first
+   game still to be decided.
 4. **Season** — season standings and current jackpot.
 5. **Settlement** (per pool) — monthly settlement: owes / won / net per person.
 6. **Admin** — enrollments, payments, on-behalf picks, results, data import, audit log,

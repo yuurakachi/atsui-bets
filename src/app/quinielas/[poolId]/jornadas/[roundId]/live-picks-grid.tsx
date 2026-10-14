@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TIME_ZONE, type MatchOutcome, type MatchResult, type Sport } from "@/domain";
 import { fetchMatches, type EspnMatch } from "@/lib/espn";
 import { liveOutcome } from "@/lib/live";
@@ -41,8 +41,7 @@ const nextDay = (iso: string) => {
 export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }: Props) {
   const [live, setLive] = useState<Map<string, EspnMatch>>(new Map());
   const [selected, setSelected] = useState<string | null>(null);
-  /** Kickoff window picked by hand; until then, the latest one that locked. */
-  const [chosenSlot, setChosenSlot] = useState<string | null>(null);
+  const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const pending = events.filter((e) => !e.result && e.externalId);
@@ -95,20 +94,39 @@ export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }
 
   const anyKnown = [...outcomes.values()].some(Boolean);
   const anyLive = [...outcomes.values()].some((o) => o && !o.final);
-  // Points are always the whole round's, whichever window is on screen.
   const rows = players
     .map((player) => ({ ...player, points: events.filter((e) => isHit(player.id, e.id)).length }))
     .sort((a, b) => (anyKnown ? b.points - a.points : 0) || a.name.localeCompare(b.name));
   const matchOf = (e: GridEvent) => (e.externalId ? live.get(e.externalId) : undefined);
 
-  // An NFL week doesn't fit on a phone: show one kickoff window at a time.
+  // An NFL week doesn't fit on a phone: the table scrolls sideways between the player
+  // and the points, with a gap and the day's name where each kickoff window starts.
   const nfl = sport === "nfl";
   const slots = nfl ? kickoffSlots(events) : [];
-  const slot = slots.find((s) => s.key === chosenSlot) ?? slots.at(-1);
-  const shown = slot ? slot.events : events;
-  const isLive = (e: GridEvent) => matchOf(e)?.state === "in";
-  const columns = `4.5rem repeat(${shown.length}, minmax(1.375rem, 1fr)) 1.75rem`;
+  const shown = nfl ? slots.flatMap((s) => s.events) : events;
+  const dayOf = (label: string) => label.split(" ")[0];
+  const windowStart = new Map(
+    slots.map((s, i) => [s.events[0].id, i > 0 && dayOf(slots[i - 1].label) === dayOf(s.label) ? "" : dayOf(s.label)]),
+  );
+  const startsWindow = (e: GridEvent) => windowStart.has(e.id) && e.id !== shown[0]?.id;
+  const columns = [
+    "5rem",
+    // NFL columns are wider: a score like 24-17 has to fit under the badges.
+    ...shown.map((e) => (startsWindow(e) ? "minmax(2.375rem, 1fr)" : `minmax(${nfl ? "1.875rem" : "1.375rem"}, 1fr)`)),
+    "2.25rem",
+  ].join(" ");
   const selectedEvent = shown.find((e) => e.id === selected);
+
+  // Open on the first game still to be decided, not on Thursday's.
+  const firstOpenId = nfl ? shown.find((e) => !outcomes.get(e.id)?.final)?.id : undefined;
+  useEffect(() => {
+    const box = scroller.current;
+    const column = firstOpenId ? box?.querySelector<HTMLElement>(`[data-event="${firstOpenId}"]`) : null;
+    const name = box?.querySelector<HTMLElement>("[data-sticky]");
+    if (!box || !column || !name) return;
+    // Right after the sticky player column.
+    box.scrollLeft += column.getBoundingClientRect().left - name.getBoundingClientRect().right - 2;
+  }, [firstOpenId]);
   /** Teams in the order they are shown: visitor first in the NFL. */
   const sides = (e: GridEvent) => (nfl ? [e.away, e.home] : [e.home, e.away]);
 
@@ -123,30 +141,15 @@ export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }
           </span>
         )}
       </h2>
-      {slots.length > 1 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {slots.map((s) => (
-            <button
-              key={s.key}
-              type="button"
-              onClick={() => setChosenSlot(s.key)}
-              aria-pressed={s === slot}
-              className={`flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold capitalize ${
-                s === slot ? "border-accent bg-accent text-accent-foreground" : "border-border bg-surface"
-              }`}
-            >
-              {s.events.some(isLive) && (
-                <span className={`size-1.5 animate-pulse rounded-full ${s === slot ? "bg-accent-foreground" : "bg-accent"}`} />
-              )}
-              {s.label}
-            </button>
-          ))}
-        </div>
+      {selectedEvent && (
+        <p className="mt-3 rounded-lg bg-gold/15 px-2 py-1.5 text-center text-xs">
+          <MatchLine event={selectedEvent} match={matchOf(selectedEvent)} outcome={outcomes.get(selectedEvent.id)} awayFirst={nfl} />
+        </p>
       )}
-      <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-surface">
+      <div ref={scroller} className="mt-3 overflow-x-auto rounded-xl border border-border bg-surface">
         <div className="min-w-fit">
-          <div className="grid items-end gap-0.5 border-b border-border px-2 py-2 text-xs font-medium text-muted" style={{ gridTemplateColumns: columns }}>
-            <span>Jugador</span>
+          <div className="grid items-end gap-0.5 border-b border-border text-xs font-medium text-muted" style={{ gridTemplateColumns: columns }}>
+            <span data-sticky className="sticky left-0 z-10 self-stretch bg-surface py-2 pl-2 content-end">Jugador</span>
             {shown.map((e) => {
               const match = matchOf(e);
               const [first, second] = sides(e);
@@ -157,11 +160,17 @@ export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }
                   onClick={() => setSelected(selected === e.id ? null : e.id)}
                   aria-label={`${e.home} contra ${e.away}`}
                   aria-pressed={selected === e.id}
-                  className={`flex flex-col items-center gap-0.5 rounded py-0.5 ${selected === e.id ? "bg-gold/25" : ""}`}
+                  data-event={e.id}
+                  className={`my-2 flex flex-col items-center gap-0.5 rounded py-0.5 ${startsWindow(e) ? "ml-2" : ""} ${selected === e.id ? "bg-gold/25" : ""}`}
                 >
+                  {nfl && (
+                    <span className="h-3 text-[0.55rem] leading-3 font-bold whitespace-nowrap text-foreground uppercase">
+                      {windowStart.get(e.id) ?? ""}
+                    </span>
+                  )}
                   <Badge team={first} />
                   <Badge team={second} />
-                  <span className={`text-[0.6rem] leading-3 tabular-nums ${match?.state === "in" ? "font-bold text-accent" : ""}`}>
+                  <span className={`text-[0.6rem] leading-3 whitespace-nowrap tabular-nums ${match?.state === "in" ? "font-bold text-accent" : ""}`}>
                     {match?.score
                       ? nfl
                         ? `${match.score.away}-${match.score.home}`
@@ -171,22 +180,21 @@ export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }
                 </button>
               );
             })}
-            <span className="text-right">Pts</span>
+            <span className="sticky right-0 z-10 self-stretch bg-surface py-2 pr-2 text-right content-end">Pts</span>
           </div>
-          {selectedEvent && (
-            <p className="border-b border-border bg-gold/15 px-2 py-1.5 text-center text-xs">
-              <MatchLine event={selectedEvent} match={matchOf(selectedEvent)} outcome={outcomes.get(selectedEvent.id)} awayFirst={nfl} />
-            </p>
-          )}
-          {rows.map((player) => (
+          {rows.map((player) => {
+            // Solid, so the columns sliding under the sticky cells don't show through.
+            const rowColor =
+              player.id === currentPlayerId ? "bg-[color-mix(in_srgb,var(--gold)_15%,var(--surface))]" : "bg-surface";
+            return (
             <div
               key={player.id}
-              className={`grid items-center gap-0.5 border-b border-border px-2 py-1 text-sm last:border-0 ${
-                player.id === currentPlayerId ? "bg-gold/15" : ""
-              }`}
+              className={`grid items-center gap-0.5 border-b border-border text-sm last:border-0 ${rowColor}`}
               style={{ gridTemplateColumns: columns }}
             >
-              <span className="truncate font-medium">{player.name}</span>
+              <span className={`sticky left-0 z-10 self-stretch truncate py-1 pl-2 font-medium content-center ${rowColor}`}>
+                {player.name}
+              </span>
               {shown.map((e) => {
                 const pick = pickOf.get(`${player.id}:${e.id}`);
                 const known = outcomes.get(e.id);
@@ -201,7 +209,7 @@ export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }
                       ? "opacity-45 grayscale dark:opacity-60"
                       : "opacity-60";
                 return (
-                  <span key={e.id} className={`flex h-7 items-center justify-center rounded ${style}`}>
+                  <span key={e.id} className={`my-1 flex h-7 items-center justify-center rounded ${startsWindow(e) ? "ml-2" : ""} ${style}`}>
                     {!pick ? (
                       <span className="text-muted">·</span>
                     ) : pick === "draw" ? (
@@ -212,14 +220,17 @@ export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }
                   </span>
                 );
               })}
-              <span className="text-right font-display text-lg leading-none font-bold tabular-nums">{player.points}</span>
+              <span className={`sticky right-0 z-10 self-stretch py-1 pr-2 text-right font-display text-lg leading-none font-bold tabular-nums content-center ${rowColor}`}>
+                {player.points}
+              </span>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
       <p className="mt-2 text-xs text-muted">
         {nfl
-          ? "Arriba, visitante y local de cada juego; toca una columna para ver el juego. Cada casilla es el equipo que escogió. Los puntos son de toda la semana."
+          ? "Desliza la tabla para ver todos los juegos. Arriba, visitante y local de cada juego; toca una columna para ver el juego. Cada casilla es el equipo que escogió."
           : "Arriba, local y visitante de cada partido; toca una columna para ver el partido. Cada casilla es el equipo que escogió (E = empate)."}
         {anyKnown &&
           " Verde relleno: acertó. Solo borde verde: va acertando en vivo. Apagado: falló. Los puntos oficiales quedan cuando el admin actualiza resultados."}
