@@ -5,6 +5,7 @@ import { F1_PICK_POSITIONS } from "@/domain";
 import { F1OrderPicker, teamColor, type PickerDriver } from "@/app/f1-order-picker";
 import { fetchF1Classification, fetchF1Season, parseF1ExternalId } from "@/lib/jolpica";
 import {
+  closeF1Picks,
   importF1Results,
   loadF1Season,
   saveManualClassification,
@@ -151,6 +152,8 @@ export interface F1RaceRow {
   /** When the race starts, already formatted. */
   date: string | null;
   cancelled: boolean;
+  /** When the picks lock, formatted; null once they're closed. */
+  locksAt: string | null;
 }
 
 /** Races not scored yet: an admin removes the ones that are cancelled, or puts them back. */
@@ -168,6 +171,18 @@ export function F1RaceList({ poolId, races }: { poolId: string; races: F1RaceRow
     startTransition(async () => setResult(await setF1RoundCancelled(poolId, race.id, !race.cancelled)));
   };
 
+  const close = (race: F1RaceRow) => {
+    if (
+      !window.confirm(
+        `¿Cerrar ya los pics de ${race.name}? Nadie podrá cambiar los suyos (en fin de semana con sprint se cierran Sprint y GP). ` +
+          "Quien no tenga pics repite su alineación anterior. No se puede deshacer desde la app.",
+      )
+    ) {
+      return;
+    }
+    startTransition(async () => setResult(await closeF1Picks(poolId, race.id)));
+  };
+
   return (
     <div>
       <ul className="rounded-xl border border-border bg-surface">
@@ -178,7 +193,13 @@ export function F1RaceList({ poolId, races }: { poolId: string; races: F1RaceRow
               <span className="block truncate text-xs text-muted">
                 {race.cancelled ? "Quitada: no se juega" : (race.date ?? "Sin fecha")}
               </span>
+              {race.locksAt && <span className="block truncate text-xs text-muted">Pics cierran {race.locksAt}</span>}
             </span>
+            {race.locksAt && (
+              <button type="button" onClick={() => close(race)} disabled={pending} className={buttonClass}>
+                Cerrar pics
+              </button>
+            )}
             <button type="button" onClick={() => toggle(race)} disabled={pending} className={buttonClass}>
               {race.cancelled ? "Restaurar" : "Quitar"}
             </button>

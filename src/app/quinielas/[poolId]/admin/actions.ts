@@ -414,6 +414,52 @@ export async function setDriverActive(poolId: string, driverId: string, active: 
 }
 
 /**
+ * Closes an F1 round's picks now, before its lock (an admin already has everyone's). On a
+ * Sprint weekend the Sprint and the GP share the lock, so both close. Whoever has no picks
+ * repeats their previous lineup right away.
+ */
+export async function closeF1Picks(poolId: string, roundId: string): Promise<ActionResult> {
+  if (!(await canManagePool(poolId))) return { ok: false, message: "No tienes permiso para esta quiniela." };
+  const { supabase, season } = await f1Pool(poolId);
+  if (!season) return { ok: false, message: "Esta quiniela no es de F1." };
+
+  const { data: event } = await supabase
+    .from("events")
+    .select("lock_at, round:rounds!inner(pool_id, status)")
+    .eq("round_id", roundId)
+    .eq("round.pool_id", poolId)
+    .limit(1)
+    .maybeSingle();
+  if (!event || event.round.status !== "scheduled") return { ok: false, message: "Jornada no encontrada." };
+  const now = new Date();
+  if (new Date(event.lock_at) <= now) return { ok: false, message: "Los pics de esa carrera ya estaban cerrados." };
+
+  // Every open round with the same lock: the Sprint and GP of a Sprint weekend.
+  const { data: scheduled } = await supabase.from("rounds").select("id").eq("pool_id", poolId).eq("status", "scheduled");
+  const { data: closed, error } = await supabase
+    .from("events")
+    .update({ lock_at: now.toISOString() })
+    .in("round_id", (scheduled ?? []).map((r) => r.id))
+    .eq("lock_at", event.lock_at)
+    .select("id, name");
+  if (error || !closed.length) return { ok: false, message: "No se pudo cerrar. Intenta de nuevo." };
+
+  let repeated = 0;
+  for (const e of closed) {
+    const { data } = await supabase.rpc("fill_missing_f1_picks", { p_event_id: e.id });
+    repeated += data ?? 0;
+  }
+  revalidatePath("/", "layout");
+  const names = closed.map((e) => e.name).filter(Boolean).join(" y ");
+  return {
+    ok: true,
+    message:
+      `Pics cerrados: ${names}.` +
+      (repeated ? ` ${repeated === 1 ? "1 jugador repitió" : `${repeated} jugadores repitieron`} su alineación anterior.` : ""),
+  };
+}
+
+/**
  * Removes a race that won't be run from the pool (nobody picks or pays it), or puts it
  * back. The round and its picks are kept, so loading the calendar doesn't create it again.
  */

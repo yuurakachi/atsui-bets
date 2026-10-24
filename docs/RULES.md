@@ -60,6 +60,8 @@ All times are **America/Mexico_City**.
 
 While the F1 calendar doesn't have that session's time yet, the lock is Friday 15:00 of
 the race weekend (Thursday 15:00 on Sprint weekends), and moves once the time is known.
+An F1 pool's admins can close a round's picks earlier, for instance once they have
+everyone's; on a Sprint weekend that closes the Sprint and the GP together.
 
 **F1 only — forgotten picks.** A participant who has made **no picks at all** for a
 round when it locks gets the same P1–P10 as in their most recent earlier round with

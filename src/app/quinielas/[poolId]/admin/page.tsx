@@ -34,7 +34,7 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
     supabase.from("pools").select("id, name, sport, season").eq("id", poolId).single(),
     supabase
       .from("rounds")
-      .select("id, name, ordinal, status, events(id, external_id, starts_at, home_team, away_team, result), period:settlement_periods(settled_at)")
+      .select("id, name, ordinal, status, events(id, external_id, starts_at, lock_at, home_team, away_team, result), period:settlement_periods(settled_at)")
       .eq("pool_id", poolId)
       .order("ordinal"),
     supabase
@@ -202,7 +202,7 @@ interface AdminRound {
   id: string;
   name: string;
   status: "scheduled" | "completed" | "cancelled";
-  events: { id: string; external_id: string | null; starts_at: string }[];
+  events: { id: string; external_id: string | null; starts_at: string; lock_at: string }[];
   period: { settled_at: string | null } | null;
 }
 
@@ -234,6 +234,11 @@ async function F1Admin({ poolId, season, rounds }: { poolId: string; season: str
       name: r.name,
       date: r.events[0] ? raceDate.format(new Date(r.events[0].starts_at)) : null,
       cancelled: r.status === "cancelled",
+      // Picks still open: when they lock, formatted.
+      locksAt:
+        r.status === "scheduled" && r.events[0] && new Date(r.events[0].lock_at).getTime() > now
+          ? raceDate.format(new Date(r.events[0].lock_at))
+          : null,
     }));
 
   return (
@@ -252,7 +257,8 @@ async function F1Admin({ poolId, season, rounds }: { poolId: string; season: str
       <section className="mt-8">
         <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Carreras</h2>
         <p className="mt-1 mb-3 text-sm text-muted">
-          Si una carrera se cancela, quítala: nadie la juega ni la paga, y cargar el calendario no la vuelve a crear.
+          Si ya tienes los pics de todos, ciérralos antes de tiempo con «Cerrar pics». Si una carrera se cancela,
+          quítala: nadie la juega ni la paga, y cargar el calendario no la vuelve a crear.
         </p>
         {races.length === 0 ? (
           <p className="text-sm text-muted">No hay carreras por correr cargadas.</p>
