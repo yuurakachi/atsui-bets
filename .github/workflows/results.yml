@@ -1,11 +1,10 @@
-# Every 30 minutes, asks the app to save the results of the Liga MX and NFL rounds
-# whose last match is over and to open the next Liga MX matchday and NFL week
-# (src/app/api/cron/results). Most runs find nothing to do.
+# Asks the app to save the results of the Liga MX and NFL rounds whose last match is
+# over and to open the next Liga MX matchday and NFL week (src/app/api/cron/results).
+# Run by hand only: Supabase's pg_cron calls the same route every 30 minutes
+# (supabase/migrations/20261110000000_results_cron.sql).
 name: Update results
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:

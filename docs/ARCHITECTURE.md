@@ -8,7 +8,7 @@
 | Styling | Tailwind CSS | Fast mobile-first UI |
 | Database & auth | Supabase (Postgres + Auth + Row Level Security) | Relational data, magic-link / Google login, permissions enforced in the DB |
 | Hosting | Vercel | Zero-config Next.js deploys |
-| Scheduled jobs | GitHub Actions schedule calling a Vercel route | Save Liga MX and NFL results once a round is over |
+| Scheduled jobs | Supabase `pg_cron` calling a Vercel route | Save Liga MX and NFL results once a round is over, open the next round |
 | Tests | Vitest | The scoring and money rules are pure functions with full test coverage |
 
 Everything fits in the free tiers for a group of ~15 people.
@@ -36,8 +36,9 @@ Thursday, Saturday and holiday games and skips teams on a bye. A week can be loa
 after its first game has locked: the games still open take picks as usual, and the
 locked ones are entered by the pool's admins on behalf of the players.
 
-**Automatic results.** Every 30 minutes `.github/workflows/results.yml` calls
-`/api/cron/results` with `CRON_SECRET`. The route looks for Liga MX and NFL rounds whose
+**Automatic results.** Every 30 minutes a `pg_cron` job in Supabase calls
+`/api/cron/results` with `CRON_SECRET` (kept in Supabase Vault as `cron_secret`), through
+`pg_net`; `.github/workflows/results.yml` calls it by hand, with an optional dry run. The route looks for Liga MX and NFL rounds whose
 last match should be over (kickoff plus the match duration) and that still miss a
 result, asks ESPN for the days with matches, saves the results with the secret key and
 scores the rounds that are complete. Most runs find nothing to do. A postponed match
@@ -49,7 +50,8 @@ of the 18 teams plays once. Postponed matches with a new date before that matchd
 ends join it. When the matches don't add up it creates nothing and the admin screen
 says so, for the admin to load it by hand. NFL weeks open the same way and at the same
 time, asking ESPN for the next week by number, so there's nothing to guess.
-GitHub runs it because Vercel's free plan only allows daily cron jobs.
+Supabase runs it because Vercel's free plan only allows daily cron jobs, and GitHub's
+schedule is best effort: it didn't run at all.
 
 Admins can always enter or correct results by hand; automatic imports are a
 convenience, never the only path.
