@@ -5,7 +5,7 @@ import { TIME_ZONE, type MatchResult } from "@/domain";
 import { canManagePool } from "@/lib/dal";
 import { getF1Drivers } from "@/lib/f1";
 import { playerName } from "@/lib/format";
-import { NFL_REGULAR_SEASON_WEEKS } from "@/lib/espn";
+import { espnDays, NFL_REGULAR_SEASON_WEEKS } from "@/lib/espn";
 import { reminderMessage, roundTitle } from "@/lib/reminders";
 import { getOpenRoundsProgress } from "@/lib/rounds";
 import { createClient } from "@/lib/supabase/server";
@@ -23,7 +23,6 @@ const raceDate = new Intl.DateTimeFormat("es-MX", {
   hour: "2-digit",
   minute: "2-digit",
 });
-const isoDay = (date: Date) => date.toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
 
 export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[poolId]/admin">) {
   const { poolId } = await params;
@@ -154,8 +153,6 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
           ) : (
             <div className="mt-3 space-y-2">
               {pending.map((round) => {
-                const starts = round.events.map((e) => new Date(e.starts_at).getTime());
-                const oneDay = 24 * 60 * 60 * 1000;
                 return (
                   <ResultsUpdater
                     key={round.id}
@@ -171,8 +168,7 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
                         label: nfl ? `${e.away_team} @ ${e.home_team}` : `${e.home_team} vs ${e.away_team}`,
                         result: e.result as MatchResult | null,
                       }))}
-                    from={isoDay(new Date(Math.min(...starts) - oneDay))}
-                    to={isoDay(new Date(Math.max(...starts) + oneDay))}
+                    days={espnDays(round.events.map((e) => new Date(e.starts_at)))}
                   />
                 );
               })}

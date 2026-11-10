@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { MatchResult, Sport } from "@/domain";
-import { fetchMatch, fetchMatches, fetchNflWeek, type EspnMatch } from "@/lib/espn";
+import { fetchMatch, fetchMatches, fetchMatchesOn, fetchNflWeek, type EspnMatch } from "@/lib/espn";
 import { createRound, saveResults, setEventCounts, type ActionResult } from "./actions";
 
 /** Matches in a regular Liga MX matchday. */
@@ -225,8 +225,8 @@ export function ResultsUpdater(props: {
   name: string;
   externalIds: string[];
   events: { id: string; label: string; result: MatchResult | null }[];
-  from: string;
-  to: string;
+  /** Days with matches ("YYYY-MM-DD"), to ask ESPN for. */
+  days: string[];
 }) {
   const [result, setResult] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
@@ -241,7 +241,7 @@ export function ResultsUpdater(props: {
     startTransition(async () => {
       try {
         const ids = new Set(props.externalIds);
-        const matches = (await fetchMatches(props.sport, props.from, props.to)).filter((m) => ids.has(m.externalId));
+        const matches = (await fetchMatchesOn(props.sport, props.days)).filter((m) => ids.has(m.externalId));
         setResult(await saveResults(props.poolId, props.roundId, matches));
       } catch (e) {
         setResult({ ok: false, message: (e as Error).message });

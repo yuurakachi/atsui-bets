@@ -19,9 +19,12 @@ import {
 } from "@/domain";
 import { playerName } from "./format";
 import { nextDayEvents } from "./reminders";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "./supabase/database.types";
 import { createClient } from "./supabase/server";
 
-type Supabase = Awaited<ReturnType<typeof createClient>>;
+/** A signed-in admin's client, or the service client of the automatic results. */
+type Supabase = SupabaseClient<Database>;
 
 export interface NewEvent {
   externalId: string;
@@ -257,6 +260,31 @@ export async function getOpenRoundsProgress(poolId: string): Promise<OpenRoundPr
  * Re-scoring (e.g. an F1 disqualification) keeps the round's settlement period, and is
  * refused once that period's money has been settled.
  */
+/**
+ * Saves the final results of a round's matches (by ESPN id) and scores the round once
+ * every match has one. A match an admin marked as not counting stays that way.
+ */
+export async function saveMatchResults(
+  supabase: Supabase,
+  roundId: string,
+  matches: readonly { externalId: string; result: MatchResult | null }[],
+): Promise<{ updated: number; scored: boolean }> {
+  let updated = 0;
+  for (const m of matches) {
+    if (m.result === null) continue;
+    const { data, error } = await supabase
+      .from("events")
+      .update({ result: m.result })
+      .eq("round_id", roundId)
+      .eq("external_id", m.externalId)
+      .or("result.is.null,result.neq.void")
+      .select("id");
+    if (error) throw new Error(error.message);
+    updated += data.length;
+  }
+  return { updated, scored: await scoreRound(supabase, roundId) };
+}
+
 export async function scoreRound(supabase: Supabase, roundId: string): Promise<boolean> {
   const { data: round } = await supabase
     .from("rounds")

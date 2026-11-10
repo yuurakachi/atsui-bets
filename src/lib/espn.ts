@@ -1,8 +1,8 @@
 /**
- * ESPN's public scoreboard API. Runs in the admin's browser: ESPN rejects some
- * server-side requests but allows cross-origin requests from browsers.
+ * ESPN's public scoreboard API. The admin screens call it from the browser; the
+ * automatic results job (src/app/api/cron/results) calls it from the server.
  */
-import type { MatchResult, Sport } from "@/domain";
+import { TIME_ZONE, type MatchResult, type Sport } from "@/domain";
 
 export interface EspnMatch {
   externalId: string;
@@ -99,16 +99,37 @@ function yyyymmdd(date: string): string {
 
 /** Every match between two calendar dates (inclusive, "YYYY-MM-DD"), sorted by kickoff. */
 export async function fetchMatches(sport: Sport, from: string, to: string): Promise<EspnMatch[]> {
-  const path = LEAGUE_PATH[sport];
-  if (!path) throw new Error(`ESPN no tiene partidos para ${sport}.`);
-
-  // ESPN rejects date ranges for soccer, so ask day by day.
   const days: string[] = [];
   for (let d = new Date(`${from}T12:00:00Z`); d <= new Date(`${to}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1)) {
     days.push(d.toISOString().slice(0, 10));
   }
   if (days.length > 10) throw new Error("Elige un rango de 10 días o menos.");
+  return fetchMatchesOn(sport, days);
+}
 
+const localDay = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE });
+
+/**
+ * The days ("YYYY-MM-DD") to ask ESPN for to find these kickoffs: each one's Mexico City
+ * date and the day after, since ESPN files late matches under the next day.
+ */
+export function espnDays(kickoffs: readonly Date[]): string[] {
+  const days = new Set<string>();
+  for (const kickoff of kickoffs) {
+    const day = localDay.format(kickoff);
+    const next = new Date(`${day}T12:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + 1);
+    days.add(day).add(next.toISOString().slice(0, 10));
+  }
+  return [...days].sort();
+}
+
+/** Every match on the given days ("YYYY-MM-DD"), sorted by kickoff. */
+export async function fetchMatchesOn(sport: Sport, days: readonly string[]): Promise<EspnMatch[]> {
+  const path = LEAGUE_PATH[sport];
+  if (!path) throw new Error(`ESPN no tiene partidos para ${sport}.`);
+
+  // ESPN rejects date ranges for soccer, so ask day by day.
   const responses = await Promise.all(
     days.map(async (day) => {
       const response = await fetch(

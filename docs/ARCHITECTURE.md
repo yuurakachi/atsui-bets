@@ -8,7 +8,7 @@
 | Styling | Tailwind CSS | Fast mobile-first UI |
 | Database & auth | Supabase (Postgres + Auth + Row Level Security) | Relational data, magic-link / Google login, permissions enforced in the DB |
 | Hosting | Vercel | Zero-config Next.js deploys |
-| Scheduled jobs | Supabase `pg_cron` + Edge Functions | Fetch fixtures/results and lock rounds on time |
+| Scheduled jobs | GitHub Actions schedule calling a Vercel route | Save Liga MX and NFL results once a round is over |
 | Tests | Vitest | The scoring and money rules are pure functions with full test coverage |
 
 Everything fits in the free tiers for a group of ~15 people.
@@ -35,6 +35,14 @@ An NFL week is asked to ESPN by week number rather than by dates, which covers
 Thursday, Saturday and holiday games and skips teams on a bye. A week can be loaded
 after its first game has locked: the games still open take picks as usual, and the
 locked ones are entered by the pool's admins on behalf of the players.
+
+**Automatic results.** Every 30 minutes `.github/workflows/results.yml` calls
+`/api/cron/results` with `CRON_SECRET`. The route looks for Liga MX and NFL rounds whose
+last match should be over (kickoff plus the match duration) and that still miss a
+result, asks ESPN for the days with matches, saves the results with the secret key and
+scores the rounds that are complete. Most runs find nothing to do. A postponed match
+that ESPN doesn't mark keeps its round waiting until an admin marks it as not counting.
+GitHub runs it because Vercel's free plan only allows daily cron jobs.
 
 Admins can always enter or correct results by hand; automatic imports are a
 convenience, never the only path.

@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/auth", "/privacidad"];
+// /api/cron checks its own secret: the scheduled job has no session.
+const PUBLIC_PATHS = ["/login", "/auth", "/privacidad", "/api/cron"];
 
 /**
  * Refreshes the Supabase session on every navigation and sends signed-out visitors to

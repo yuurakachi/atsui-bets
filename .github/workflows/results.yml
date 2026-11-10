@@ -1,0 +1,30 @@
+# Every 30 minutes, asks the app to save the results of the Liga MX and NFL rounds
+# whose last match is over (src/app/api/cron/results). Most runs find nothing to do.
+name: Update results
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only report what would be saved
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Save the results of finished rounds
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          url="https://atsui-bets.vercel.app/api/cron/results"
+          if [ "$DRY_RUN" = "true" ]; then url="$url?dryRun=1"; fi
+          curl --fail-with-body --silent --show-error --max-time 90 \
+            -H "Authorization: Bearer $CRON_SECRET" "$url"

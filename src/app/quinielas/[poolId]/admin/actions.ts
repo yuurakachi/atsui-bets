@@ -11,7 +11,7 @@ import {
   type F1DriverInfo,
   type F1SeasonData,
 } from "@/lib/jolpica";
-import { lockTimes, scoreRound, type NewEvent } from "@/lib/rounds";
+import { lockTimes, saveMatchResults, scoreRound, type NewEvent } from "@/lib/rounds";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionResult = { ok: true; message: string } | { ok: false; message: string };
@@ -173,22 +173,13 @@ export async function saveResults(poolId: string, roundId: string, matches: Matc
     .maybeSingle();
   if (!round) return { ok: false, message: "Jornada no encontrada." };
 
-  let updated = 0;
-  for (const m of matches) {
-    if (m.result === null) continue;
-    // A match marked as not counting stays that way until an admin says it counts again.
-    const { data, error } = await supabase
-      .from("events")
-      .update({ result: m.result })
-      .eq("round_id", roundId)
-      .eq("external_id", m.externalId)
-      .or("result.is.null,result.neq.void")
-      .select("id");
-    if (error) return { ok: false, message: error.message };
-    updated += data.length;
+  let saved: { updated: number; scored: boolean };
+  try {
+    saved = await saveMatchResults(supabase, roundId, matches);
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
   }
-
-  const scored = await scoreRound(supabase, roundId);
+  const { updated, scored } = saved;
   revalidatePath(`/quinielas/${poolId}`, "layout");
   return {
     ok: true,
