@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ligaMxRoundLock, type MatchResult, type Sport } from "@/domain";
+import type { MatchResult, Sport } from "@/domain";
 import { fetchMatch, fetchMatches, fetchNflWeek, type EspnMatch } from "@/lib/espn";
 import { createRound, saveResults, setEventCounts, type ActionResult } from "./actions";
 
@@ -146,8 +146,6 @@ export function RoundLoader(props: {
       !(matches ?? []).some((m) => m.externalId === p.externalId) &&
       !rescheduled.some((m) => m.externalId === p.externalId),
   );
-  const lock =
-    props.sport === "liga_mx" && chosen.length > 0 ? ligaMxRoundLock(new Date(chosen[0].startsAt)) : null;
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
@@ -181,8 +179,7 @@ export function RoundLoader(props: {
                     Reprogramados fuera de estas fechas
                   </p>
                   <p className="mt-1 mb-2 text-xs text-muted">
-                    Márcalos para jugarlos en esta jornada. Los pics de toda la jornada cierran el día antes del
-                    primer partido.
+                    Márcalos para jugarlos en esta jornada.
                   </p>
                   <ul className="space-y-2 text-sm">{rescheduled.map(row)}</ul>
                 </div>
@@ -195,11 +192,6 @@ export function RoundLoader(props: {
                   {chosen.length < LIGA_MX_MATCHES
                     ? "Revisa que no falte ninguno (prueba con más fechas)."
                     : "Está bien si entra un partido reprogramado; si no, quita el que sobre."}
-                </p>
-              )}
-              {lock && (
-                <p className="mt-3 text-sm text-muted">
-                  Los pics cerrarán el <span className="font-medium text-foreground">{kickoff.format(lock)}</span>
                 </p>
               )}
 

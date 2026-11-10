@@ -5,7 +5,7 @@ const base: ReminderInput = {
   sport: "liga_mx",
   poolName: "Liga MX",
   roundName: "J11",
-  lockAt: new Date("2026-10-09T05:59:00Z"), // Thu Oct 8, 23:59 in Mexico City
+  lockAt: new Date("2026-10-10T00:55:00Z"), // Fri Oct 9, 18:55 in Mexico City: the first match locks
   url: "https://example.com/r/11",
   missing: [],
   openEvents: 9,
@@ -26,7 +26,7 @@ describe("reminderMessage", () => {
       [
         "⚽ *Liga MX · Jornada 11*",
         "¡Ya están abiertos los pics!",
-        "Los pics cierran el *jueves 8 de octubre a las 23:59*.",
+        "El primer partido cierra el *viernes 9 de octubre a las 18:55*; cada uno cierra 5 minutos antes de empezar.",
         "",
         "👉 https://example.com/r/11",
       ].join("\n"),
@@ -42,7 +42,7 @@ describe("reminderMessage", () => {
       ],
     });
     expect(text).toContain("Faltan: Ana, Caro (le faltan 2)");
-    expect(text).toContain("cierran el *jueves 8 de octubre a las 23:59*");
+    expect(text).toContain("El primer partido cierra el *viernes 9 de octubre a las 18:55*");
   });
 
   const nfl: ReminderInput = {

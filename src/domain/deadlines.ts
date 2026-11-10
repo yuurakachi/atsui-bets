@@ -3,13 +3,8 @@
  */
 import { addDays, addMinutes, FRIDAY, localDateOf, previousOrSame, zonedTime } from "./time";
 
-/** Liga MX: the whole matchday locks at 23:59 the day before its first match. */
-export function ligaMxRoundLock(firstKickoff: Date): Date {
-  return zonedTime(addDays(localDateOf(firstKickoff), -1), 23, 59);
-}
-
-/** NFL: each game locks 5 minutes before kickoff. */
-export function nflGameLock(kickoff: Date): Date {
+/** Liga MX and NFL: each match locks 5 minutes before kickoff. */
+export function matchLock(kickoff: Date): Date {
   return addMinutes(kickoff, -5);
 }
 

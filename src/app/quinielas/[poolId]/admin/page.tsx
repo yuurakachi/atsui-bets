@@ -130,7 +130,7 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
               <p className="mt-1 mb-3 text-sm text-muted">
                 {nfl
                   ? "Busca los juegos de la semana en ESPN, revísalos y crea la semana. Cada juego cierra solo 5 minutos antes de empezar."
-                  : "Busca los partidos de la próxima jornada en ESPN, revísalos y crea la jornada. Los pics cierran solos según las reglas."}
+                  : "Busca los partidos de la próxima jornada en ESPN, revísalos y crea la jornada. Cada partido cierra solo 5 minutos antes de empezar."}
               </p>
               <RoundLoader
                 key={nextName}

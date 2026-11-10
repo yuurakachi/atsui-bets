@@ -36,8 +36,8 @@ Details:
 - **Liga MX**: regular season only; the playoffs (*liguilla*) are not played.
   A postponed match does not count in its original matchday (nobody scores it there).
   When it is rescheduled it joins the matchday of the week it is played, as one more
-  match: everyone picks it again and it scores like any other. That matchday locks, as
-  always, at 23:59 of the day before its first match, the rescheduled one included.
+  match: everyone picks it again and it scores like any other, and it locks 5 minutes
+  before its own kickoff.
 - **NFL**: regular season only (weeks 1–18); the playoffs are not played. An NFL game
   that ends in a tie awards no points. No tiebreakers.
 - **F1**: a driver can be picked only once per round. Results follow the official
@@ -53,7 +53,7 @@ All times are **America/Mexico_City**.
 
 | Pool | Lock |
 |---|---|
-| Liga MX | Whole round locks at 23:59 the day **before** the round's first match |
+| Liga MX | Each match locks individually 5 minutes before kickoff (since J17 of the 2026 Apertura; before that, the whole round locked at 23:59 the day before its first match) |
 | NFL | Each game locks individually 5 minutes before kickoff |
 | F1, Sprint weekend | Sprint and GP picks both lock **5 minutes before Sprint Qualifying** |
 | F1, regular weekend | GP picks lock **5 minutes before the third practice** |

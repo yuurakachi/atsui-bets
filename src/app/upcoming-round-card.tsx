@@ -43,7 +43,7 @@ export function UpcomingRoundCard({ round, poolName }: { round: UpcomingRound; p
       <p className="text-sm text-muted">
         {closed
           ? "Pics cerrados · ver resultados"
-          : `${round.sport === "nfl" ? "Próximo cierre" : "Cierra"} ${lockFormat.format(round.firstLockAt)}`}
+          : `${round.sport === "f1" ? "Cierra" : "Próximo cierre"} ${lockFormat.format(round.firstLockAt)}`}
       </p>
     </Link>
   );

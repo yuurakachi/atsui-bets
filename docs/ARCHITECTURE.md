@@ -71,7 +71,7 @@ Notes:
   what lets admins import past standings and enter picks for people who never use the
   app. `user_id` always follows `email` and can't be set by hand.
 - **Every event has its own `lock_at`**, computed by `src/domain/deadlines.ts`. For
-  Liga MX all events of a matchday share it; for NFL each game has its own. This keeps
+  Liga MX and NFL each match has its own; an F1 round shares one. This keeps
   the pick permissions identical for every sport.
 - `entered_by` differs from `player_id` when an admin or the player's delegate enters a
   pick on their behalf; those picks are audited.

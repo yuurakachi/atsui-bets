@@ -1,20 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { f1RoundLock, isLocked, ligaMxRoundLock, nflGameLock } from "./deadlines";
+import { f1RoundLock, isLocked, matchLock } from "./deadlines";
 
 // Mexico City is UTC-6 all year (no DST since 2022).
 // October 2026: Thu 1, Fri 2, Sat 3, Sun 4 … Thu 22, Fri 23, Sun 25 … Fri 30, Sun Nov 1.
 
-describe("ligaMxRoundLock", () => {
-  it("locks at 23:59 the day before the first match", () => {
-    // First match Friday Oct 2, 19:00 CDMX
-    const lock = ligaMxRoundLock(new Date("2026-10-03T01:00:00Z"));
-    expect(lock.toISOString()).toBe("2026-10-02T05:59:00.000Z"); // Thu Oct 1, 23:59 CDMX
+describe("matchLock", () => {
+  it("locks a Liga MX match 5 minutes before kickoff", () => {
+    // Friday Oct 2, 19:00 CDMX
+    expect(matchLock(new Date("2026-10-03T01:00:00Z")).toISOString()).toBe("2026-10-03T00:55:00.000Z");
   });
-});
 
-describe("nflGameLock", () => {
-  it("locks 5 minutes before kickoff", () => {
-    expect(nflGameLock(new Date("2026-10-04T17:00:00Z")).toISOString()).toBe("2026-10-04T16:55:00.000Z");
+  it("locks an NFL game 5 minutes before kickoff", () => {
+    expect(matchLock(new Date("2026-10-04T17:00:00Z")).toISOString()).toBe("2026-10-04T16:55:00.000Z");
   });
 });
 

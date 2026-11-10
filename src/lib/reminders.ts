@@ -37,11 +37,14 @@ export function roundTitle(name: string): string {
 export function reminderMessage(input: ReminderInput): string {
   const date = day.format(input.lockAt).replace(",", "");
   const hour = time.format(input.lockAt);
-  // NFL games lock one by one, so each reminder chases one day's games.
+  // Matches lock one by one: an NFL reminder chases one day's games, a Liga MX one the
+  // whole matchday. An F1 round locks all at once.
   const deadline =
-    input.sport !== "nfl"
+    input.sport === "f1"
       ? `Los pics cierran el *${date} a las ${hour}*.`
-      : input.openEvents === 1
+      : input.sport === "liga_mx"
+        ? `El primer partido cierra el *${date} a las ${hour}*; cada uno cierra 5 minutos antes de empezar.`
+        : input.openEvents === 1
         ? `El juego del *${date}* cierra a las *${hour}*.`
         : `Los ${input.openEvents} juegos del *${date}* cierran uno por uno; el primero a las *${hour}*.`;
   const header = `${ICONS[input.sport]} *${input.poolName} · ${roundTitle(input.roundName)}*`;

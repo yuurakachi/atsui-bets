@@ -75,7 +75,7 @@ export async function createRound(poolId: string, name: string, matches: MatchIn
   }
 
   const events: NewEvent[] = matches.map((m) => ({ ...m, startsAt: new Date(m.startsAt) }));
-  const locks = lockTimes(pool.sport, events);
+  const locks = lockTimes(events);
   // An NFL week can be loaded once it's under way: games lock one by one, and the ones
   // already locked are left for the pool's admins to enter on behalf.
   const open = locks.filter((lock) => lock.getTime() > Date.now()).length;

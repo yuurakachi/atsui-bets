@@ -3,9 +3,8 @@ import { cache } from "react";
 import {
   F1_PICK_POSITIONS,
   f1PicksShownFrom,
-  ligaMxRoundLock,
   nextDefaultCutoff,
-  nflGameLock,
+  matchLock,
   orderByPosition,
   perfectRoundBonus,
   perfectRoundPoints,
@@ -32,9 +31,8 @@ export interface NewEvent {
 }
 
 /** Lock time per event, following docs/RULES.md §3. */
-export function lockTimes(sport: Sport, events: readonly NewEvent[]): Date[] {
-  const firstKickoff = new Date(Math.min(...events.map((e) => e.startsAt.getTime())));
-  return events.map((e) => (sport === "liga_mx" ? ligaMxRoundLock(firstKickoff) : nflGameLock(e.startsAt)));
+export function lockTimes(events: readonly NewEvent[]): Date[] {
+  return events.map((e) => matchLock(e.startsAt));
 }
 
 export interface RoundDetail {

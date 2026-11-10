@@ -13,8 +13,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import {
-  ligaMxRoundLock,
-  nflGameLock,
+  matchLock,
   perfectRoundBonus,
   perfectRoundPoints,
   rankEntries,
@@ -72,9 +71,7 @@ if (round.perfectIds.length > 0) {
 const positions = new Map<string, number>();
 for (const group of rankEntries(entries)) for (const id of group.profileIds) positions.set(id, group.from);
 
-const firstKickoff = new Date(Math.min(...events.map((e) => e.startsAt.getTime())));
-const lockFor = (start: Date) =>
-  data.pool.sport === "liga_mx" ? ligaMxRoundLock(firstKickoff) : nflGameLock(start);
+const lockFor = (start: Date) => matchLock(start);
 const finishedAt = roundFinishedAt(data.pool.sport, events.map((e) => e.startsAt));
 
 const sql = (value: string | null | undefined) => (value == null ? "null" : `'${value.replaceAll("'", "''")}'`);

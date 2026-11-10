@@ -57,7 +57,7 @@ export default async function RoundPage({ params }: PageProps<"/quinielas/[poolI
         <p className="mt-1 text-muted">
           {sameLock
             ? `Los pics cierran el ${lockFormat.format(firstLock)}`
-            : "Cada juego cierra 5 minutos antes de empezar; puedes cambiar tus pics hasta entonces."}
+            : `Cada ${detail.sport === "nfl" ? "juego" : "partido"} cierra 5 minutos antes de empezar; puedes cambiar tus pics hasta entonces.`}
         </p>
 
         {detail.events.some((e) => e.result === "void") && (
