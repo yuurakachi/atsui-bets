@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { TIME_ZONE, type MatchResult } from "@/domain";
+import { TIME_ZONE, type MatchResult, LIGA_MX_MATCHDAYS, LIGA_MX_MATCHES_PER_MATCHDAY, matchdayOpensAt } from "@/domain";
 import { canManagePool } from "@/lib/dal";
 import { getF1Drivers } from "@/lib/f1";
 import { playerName } from "@/lib/format";
@@ -50,6 +50,14 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
   const nextOrdinal = (last?.ordinal ?? 0) + 1;
   const nextName = nfl ? `Semana ${nextOrdinal}` : `J${nextOrdinal}`;
   const weekend = upcomingWeekend(new Date());
+  // Liga MX matchdays open by themselves the day after the last match; if one hasn't an
+  // hour later (the job runs every 30 minutes), its matches didn't add up and it's manual.
+  const lastKickoff = last?.events.length ? Math.max(...last.events.map((e) => new Date(e.starts_at).getTime())) : null;
+  const opensAt =
+    pool.sport === "liga_mx" && last && last.ordinal < LIGA_MX_MATCHDAYS && lastKickoff !== null
+      ? matchdayOpensAt(new Date(lastKickoff))
+      : null;
+  const notOpened = opensAt !== null && new Date().getTime() >= opensAt.getTime() + 60 * 60 * 1000;
   const pending = (rounds ?? []).filter((r) => r.status === "scheduled" && r.events.length > 0);
   // Matches already in a round can't be loaded again, unless they didn't count there
   // (postponed): those wait here until they're played, and go in that week's round.
@@ -129,8 +137,14 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
               <p className="mt-1 mb-3 text-sm text-muted">
                 {nfl
                   ? "Busca los juegos de la semana en ESPN, revísalos y crea la semana. Cada juego cierra solo 5 minutos antes de empezar."
-                  : "Busca los partidos de la próxima jornada en ESPN, revísalos y crea la jornada. Cada partido cierra solo 5 minutos antes de empezar."}
+                  : "La próxima jornada se abre sola el día siguiente al último partido. Si no se puede, búscala aquí en ESPN, revísala y créala. Cada partido cierra solo 5 minutos antes de empezar."}
               </p>
+              {notOpened && (
+                <p role="status" className="mb-3 rounded-lg border border-gold/50 bg-gold/10 px-3 py-2 text-sm">
+                  La {nextName} no se abrió sola: los próximos partidos de ESPN no formaron una jornada de{" "}
+                  {LIGA_MX_MATCHES_PER_MATCHDAY} con cada equipo una vez. Revísala y créala aquí.
+                </p>
+              )}
               <RoundLoader
                 key={nextName}
                 poolId={pool.id}

@@ -124,6 +124,17 @@ export function espnDays(kickoffs: readonly Date[]): string[] {
   return [...days].sort();
 }
 
+/** The days ("YYYY-MM-DD") of the current season that have matches, per ESPN's calendar. */
+export async function fetchMatchDays(sport: Sport): Promise<string[]> {
+  const path = LEAGUE_PATH[sport];
+  if (!path) throw new Error(`ESPN no tiene partidos para ${sport}.`);
+  const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard`);
+  if (!response.ok) throw new Error(`ESPN respondió ${response.status}.`);
+  const calendar = ((await response.json()) as { leagues?: { calendar?: unknown[] }[] }).leagues?.[0]?.calendar ?? [];
+  // Soccer calendars list one timestamp per day with matches, like "2026-11-20T08:00Z".
+  return calendar.filter((d): d is string => typeof d === "string").map((d) => d.slice(0, 10));
+}
+
 /** Every match on the given days ("YYYY-MM-DD"), sorted by kickoff. */
 export async function fetchMatchesOn(sport: Sport, days: readonly string[]): Promise<EspnMatch[]> {
   const path = LEAGUE_PATH[sport];

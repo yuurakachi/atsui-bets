@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { MatchResult, Sport } from "@/domain";
+import { LIGA_MX_MATCHES_PER_MATCHDAY, type MatchResult, type Sport } from "@/domain";
 import { fetchMatch, fetchMatches, fetchMatchesOn, fetchNflWeek, type EspnMatch } from "@/lib/espn";
 import { createRound, saveResults, setEventCounts, type ActionResult } from "./actions";
 
-/** Matches in a regular Liga MX matchday. */
-const LIGA_MX_MATCHES = 9;
 
 interface PostponedMatch {
   externalId: string;
@@ -185,11 +183,11 @@ export function RoundLoader(props: {
                 </div>
               )}
 
-              {props.sport === "liga_mx" && chosen.length !== LIGA_MX_MATCHES && (
+              {props.sport === "liga_mx" && chosen.length !== LIGA_MX_MATCHES_PER_MATCHDAY && (
                 <p role="status" className="mt-4 rounded-lg border border-gold/50 bg-gold/10 px-3 py-2 text-sm">
                   Hay {chosen.length} {chosen.length === 1 ? "partido marcado" : "partidos marcados"}; una jornada
-                  normal tiene {LIGA_MX_MATCHES}.{" "}
-                  {chosen.length < LIGA_MX_MATCHES
+                  normal tiene {LIGA_MX_MATCHES_PER_MATCHDAY}.{" "}
+                  {chosen.length < LIGA_MX_MATCHES_PER_MATCHDAY
                     ? "Revisa que no falte ninguno (prueba con más fechas)."
                     : "Está bien si entra un partido reprogramado; si no, quita el que sobre."}
                 </p>

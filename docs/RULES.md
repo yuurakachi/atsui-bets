@@ -38,6 +38,11 @@ Details:
   When it is rescheduled it joins the matchday of the week it is played, as one more
   match: everyone picks it again and it scores like any other, and it locks 5 minutes
   before its own kickoff.
+  Each matchday opens by itself at 00:00 of the day after the last match of the
+  previous one, with the next nine matches where every team plays once, plus any
+  postponed match whose new date falls before that matchday ends (midweek included).
+  If the matches don't add up, an admin loads it by hand. The first matchday of a
+  season is always loaded by hand; there are 17.
 - **NFL**: regular season only (weeks 1–18); the playoffs are not played. An NFL game
   that ends in a tie awards no points. No tiebreakers.
 - **F1**: a driver can be picked only once per round. Results follow the official

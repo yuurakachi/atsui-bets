@@ -261,6 +261,81 @@ export async function getOpenRoundsProgress(poolId: string): Promise<OpenRoundPr
  * refused once that period's money has been settled.
  */
 /**
+ * Creates the next round of a Liga MX or NFL pool with these matches. A match plays in
+ * one round only; one that didn't count where it was first loaded (postponed) may be
+ * loaded again in the round of the week it's played.
+ */
+export async function createMatchRound(
+  supabase: Supabase,
+  pool: { id: string; sport: Sport },
+  name: string,
+  matches: readonly NewEvent[],
+): Promise<{ ok: boolean; message: string }> {
+  const { data: last } = await supabase
+    .from("rounds")
+    .select("ordinal")
+    .eq("pool_id", pool.id)
+    .order("ordinal", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: taken } = await supabase
+    .from("events")
+    .select("external_id, result, round:rounds!inner(name, pool_id)")
+    .eq("round.pool_id", pool.id)
+    .in("external_id", matches.map((m) => m.externalId));
+  const repeated = (taken ?? []).find((e) => e.result !== "void");
+  if (repeated) {
+    const match = matches.find((m) => m.externalId === repeated.external_id)!;
+    return { ok: false, message: `${match.home} vs ${match.away} ya está en ${repeated.round.name}. Quítalo de la lista.` };
+  }
+
+  const locks = lockTimes(matches);
+  // An NFL week can be loaded once it's under way: games lock one by one, and the ones
+  // already locked are left for the pool's admins to enter on behalf.
+  const open = locks.filter((lock) => lock.getTime() > Date.now()).length;
+  if (pool.sport === "nfl" ? open === 0 : open < locks.length) {
+    return {
+      ok: false,
+      message:
+        pool.sport === "nfl"
+          ? "Todos los juegos de esa semana ya cerraron."
+          : "Algún partido ya cerró sus pics. Elige una jornada futura.",
+    };
+  }
+
+  const { data: round, error } = await supabase
+    .from("rounds")
+    .insert({
+      pool_id: pool.id,
+      name,
+      kind: pool.sport === "nfl" ? "week" : "matchday",
+      ordinal: (last?.ordinal ?? 0) + 1,
+    })
+    .select("id")
+    .single();
+  if (error) return { ok: false, message: error.message };
+
+  const { error: eventsError } = await supabase.from("events").insert(
+    matches.map((e, i) => ({
+      round_id: round.id,
+      external_id: e.externalId,
+      home_team: e.home,
+      away_team: e.away,
+      starts_at: e.startsAt.toISOString(),
+      lock_at: locks[i].toISOString(),
+    })),
+  );
+  if (eventsError) {
+    await supabase.from("rounds").delete().eq("id", round.id);
+    return { ok: false, message: eventsError.message };
+  }
+
+  const noun = pool.sport === "nfl" ? "juegos" : "partidos";
+  return { ok: true, message: `${name} creada con ${matches.length} ${noun}.` };
+}
+
+/**
  * Saves the final results of a round's matches (by ESPN id) and scores the round once
  * every match has one. A match an admin marked as not counting stays that way.
  */

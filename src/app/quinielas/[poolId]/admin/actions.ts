@@ -11,7 +11,7 @@ import {
   type F1DriverInfo,
   type F1SeasonData,
 } from "@/lib/jolpica";
-import { lockTimes, saveMatchResults, scoreRound, type NewEvent } from "@/lib/rounds";
+import { createMatchRound, saveMatchResults, scoreRound } from "@/lib/rounds";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionResult = { ok: true; message: string } | { ok: false; message: string };
@@ -53,72 +53,16 @@ export async function createRound(poolId: string, name: string, matches: MatchIn
   const { data: pool } = await supabase.from("pools").select("sport").eq("id", poolId).single();
   if (!pool || pool.sport === "f1") return { ok: false, message: "Esta quiniela no usa partidos." };
 
-  const { data: last } = await supabase
-    .from("rounds")
-    .select("ordinal")
-    .eq("pool_id", poolId)
-    .order("ordinal", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  // A match plays in one round only. One that didn't count where it was first loaded
-  // (postponed) may be loaded again in the round of the week it's played.
-  const { data: taken } = await supabase
-    .from("events")
-    .select("external_id, result, round:rounds!inner(name, pool_id)")
-    .eq("round.pool_id", poolId)
-    .in("external_id", matches.map((m) => m.externalId));
-  const repeated = (taken ?? []).find((e) => e.result !== "void");
-  if (repeated) {
-    const match = matches.find((m) => m.externalId === repeated.external_id)!;
-    return { ok: false, message: `${match.home} vs ${match.away} ya está en ${repeated.round.name}. Quítalo de la lista.` };
-  }
-
-  const events: NewEvent[] = matches.map((m) => ({ ...m, startsAt: new Date(m.startsAt) }));
-  const locks = lockTimes(events);
-  // An NFL week can be loaded once it's under way: games lock one by one, and the ones
-  // already locked are left for the pool's admins to enter on behalf.
-  const open = locks.filter((lock) => lock.getTime() > Date.now()).length;
-  if (pool.sport === "nfl" ? open === 0 : open < locks.length) {
-    return {
-      ok: false,
-      message:
-        pool.sport === "nfl"
-          ? "Todos los juegos de esa semana ya cerraron."
-          : "Algún partido ya cerró sus pics. Elige una jornada futura.",
-    };
-  }
-
-  const { data: round, error } = await supabase
-    .from("rounds")
-    .insert({
-      pool_id: poolId,
-      name: roundName,
-      kind: pool.sport === "nfl" ? "week" : "matchday",
-      ordinal: (last?.ordinal ?? 0) + 1,
-    })
-    .select("id")
-    .single();
-  if (error) return { ok: false, message: error.message };
-
-  const { error: eventsError } = await supabase.from("events").insert(
-    events.map((e, i) => ({
-      round_id: round.id,
-      external_id: e.externalId,
-      home_team: e.home,
-      away_team: e.away,
-      starts_at: e.startsAt.toISOString(),
-      lock_at: locks[i].toISOString(),
-    })),
+  const created = await createMatchRound(
+    supabase,
+    { id: poolId, sport: pool.sport },
+    roundName,
+    matches.map((m) => ({ ...m, startsAt: new Date(m.startsAt) })),
   );
-  if (eventsError) {
-    await supabase.from("rounds").delete().eq("id", round.id);
-    return { ok: false, message: eventsError.message };
-  }
+  if (!created.ok) return created;
 
   revalidatePath(`/quinielas/${poolId}`, "layout");
-  const noun = pool.sport === "nfl" ? "juegos" : "partidos";
-  return { ok: true, message: `${roundName} creada con ${events.length} ${noun}.` };
+  return created;
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

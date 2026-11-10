@@ -42,6 +42,12 @@ last match should be over (kickoff plus the match duration) and that still miss 
 result, asks ESPN for the days with matches, saves the results with the secret key and
 scores the rounds that are complete. Most runs find nothing to do. A postponed match
 that ESPN doesn't mark keeps its round waiting until an admin marks it as not counting.
+The same run opens the next Liga MX matchday from 00:00 of the day after the last match
+of the current one (`src/lib/auto-rounds.ts`). ESPN doesn't label matches with their
+matchday, so it relies on the tournament's shape: the next nine matches in which each
+of the 18 teams plays once. Postponed matches with a new date before that matchday
+ends join it. When the matches don't add up it creates nothing and the admin screen
+says so, for the admin to load it by hand.
 GitHub runs it because Vercel's free plan only allows daily cron jobs.
 
 Admins can always enter or correct results by hand; automatic imports are a
