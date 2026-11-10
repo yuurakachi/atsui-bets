@@ -45,6 +45,9 @@ Details:
   season is always loaded by hand; there are 17.
 - **NFL**: regular season only (weeks 1–18); the playoffs are not played. An NFL game
   that ends in a tie awards no points. No tiebreakers.
+  Each week opens by itself at 00:00 of the day after the last game of the previous one
+  (usually Tuesday), with every game ESPN lists for that week. Week 1 is loaded by hand,
+  and so is any week that doesn't open by itself.
 - **F1**: a driver can be picked only once per round. Results follow the official
   classification; if it changes afterwards (e.g. a disqualification) an admin re-scores
   the round, as long as the round's money hasn't been settled yet (§6). Once settled,

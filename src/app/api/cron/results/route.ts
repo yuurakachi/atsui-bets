@@ -1,4 +1,4 @@
-import { openNextMatchdays } from "@/lib/auto-rounds";
+import { openNextMatchdays, openNextNflWeeks } from "@/lib/auto-rounds";
 import { updateDueResults } from "@/lib/auto-results";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -7,8 +7,8 @@ export const maxDuration = 60;
 
 /**
  * Called every 30 minutes by .github/workflows/results.yml: saves the results of the
- * rounds whose last match is over, then opens the next Liga MX matchday once the current
- * one is over. Only callers with CRON_SECRET get in. Add ?dryRun=1 to see what it would
+ * rounds whose last match is over, then opens the next Liga MX matchday and NFL week once
+ * the current one is over. Only callers with CRON_SECRET get in. Add ?dryRun=1 to see what it would
  * do without saving anything.
  */
 export async function GET(request: Request) {
@@ -21,6 +21,7 @@ export async function GET(request: Request) {
   const supabase = createServiceClient();
   const rounds = await updateDueResults(supabase, new Date(), { dryRun });
   const matchdays = await openNextMatchdays(supabase, new Date(), { dryRun });
-  const failed = [...rounds, ...matchdays].some((r) => r.error);
-  return Response.json({ dryRun, rounds, matchdays }, { status: failed ? 502 : 200 });
+  const weeks = await openNextNflWeeks(supabase, new Date(), { dryRun });
+  const failed = [...rounds, ...matchdays, ...weeks].some((r) => r.error);
+  return Response.json({ dryRun, rounds, matchdays, weeks }, { status: failed ? 502 : 200 });
 }

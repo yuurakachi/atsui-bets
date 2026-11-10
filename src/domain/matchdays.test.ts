@@ -48,6 +48,11 @@ describe("matchdayOpensAt", () => {
     // Sun Nov 8, 20:00 CDMX is already Monday in UTC
     expect(matchdayOpensAt(new Date("2026-11-09T02:00:00Z")).toISOString()).toBe("2026-11-09T06:00:00.000Z");
   });
+
+  it("opens the next NFL week on Tuesday after Monday Night Football", () => {
+    // Mon Nov 9, 19:15 CDMX -> Tue Nov 10, 00:00 CDMX
+    expect(matchdayOpensAt(new Date("2026-11-10T01:15:00Z")).toISOString()).toBe("2026-11-10T06:00:00.000Z");
+  });
 });
 
 describe("rescheduledInto", () => {

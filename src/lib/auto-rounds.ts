@@ -1,7 +1,14 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
 import { LIGA_MX_MATCHDAYS, TIME_ZONE, matchdayOpensAt, nextMatchday, rescheduledInto } from "@/domain";
-import { fetchMatch, fetchMatchDays, fetchMatchesOn, type EspnMatch } from "./espn";
+import {
+  NFL_REGULAR_SEASON_WEEKS,
+  fetchMatch,
+  fetchMatchDays,
+  fetchMatchesOn,
+  fetchNflWeek,
+  type EspnMatch,
+} from "./espn";
 import { createMatchRound } from "./rounds";
 import type { createServiceClient } from "./supabase/service";
 
@@ -87,6 +94,57 @@ export async function openNextMatchdays(
         ...matchday,
         ...rescheduled,
       ]);
+      if (!created.ok) {
+        report.skipped = created.message;
+        continue;
+      }
+      report.created = true;
+      revalidatePath(`/quinielas/${pool.id}`, "layout");
+    } catch (e) {
+      report.error = (e as Error).message;
+    }
+  }
+  return reports;
+}
+
+/**
+ * Opens the next week of every active NFL pool once the current one is over: from 00:00
+ * of the day after its last game, usually Tuesday. ESPN is asked for the week by number,
+ * so there's nothing to guess. A round's ordinal is its week number; Week 1 is loaded by
+ * hand and Week 18 is the last.
+ */
+export async function openNextNflWeeks(
+  supabase: ReturnType<typeof createServiceClient>,
+  now: Date,
+  { dryRun }: { dryRun: boolean },
+): Promise<MatchdayReport[]> {
+  const { data: pools, error } = await supabase
+    .from("pools")
+    .select("id, name, season, rounds(ordinal, events(starts_at))")
+    .eq("sport", "nfl")
+    .eq("status", "active");
+  if (error) throw new Error(error.message);
+
+  const reports: MatchdayReport[] = [];
+  for (const pool of pools ?? []) {
+    const latest = [...pool.rounds].sort((a, b) => b.ordinal - a.ordinal)[0];
+    if (!latest || latest.ordinal >= NFL_REGULAR_SEASON_WEEKS || latest.events.length === 0) continue;
+    const lastKickoff = new Date(Math.max(...latest.events.map((e) => new Date(e.starts_at).getTime())));
+    if (now < matchdayOpensAt(lastKickoff)) continue;
+
+    const week = latest.ordinal + 1;
+    const report: MatchdayReport = { pool: pool.name, round: `Semana ${week}`, matches: 0, rescheduled: 0, created: false };
+    reports.push(report);
+    try {
+      const games = (await fetchNflWeek(pool.season, week)).map((m) => ({ ...m, startsAt: new Date(m.startsAt) }));
+      report.matches = games.length;
+      if (games.length === 0) {
+        report.skipped = "ESPN no trae juegos para esa semana.";
+        continue;
+      }
+      if (dryRun) continue;
+
+      const created = await createMatchRound(supabase, { id: pool.id, sport: "nfl" }, report.round, games);
       if (!created.ok) {
         report.skipped = created.message;
         continue;

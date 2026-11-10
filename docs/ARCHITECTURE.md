@@ -47,7 +47,8 @@ of the current one (`src/lib/auto-rounds.ts`). ESPN doesn't label matches with t
 matchday, so it relies on the tournament's shape: the next nine matches in which each
 of the 18 teams plays once. Postponed matches with a new date before that matchday
 ends join it. When the matches don't add up it creates nothing and the admin screen
-says so, for the admin to load it by hand.
+says so, for the admin to load it by hand. NFL weeks open the same way and at the same
+time, asking ESPN for the next week by number, so there's nothing to guess.
 GitHub runs it because Vercel's free plan only allows daily cron jobs.
 
 Admins can always enter or correct results by hand; automatic imports are a

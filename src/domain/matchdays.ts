@@ -1,5 +1,5 @@
 /**
- * Opening Liga MX matchdays automatically. See docs/RULES.md §2.
+ * Opening Liga MX matchdays (and NFL weeks) automatically. See docs/RULES.md §2.
  */
 import { addDays, localDateOf, zonedTime } from "./time";
 
@@ -34,7 +34,10 @@ export function nextMatchday<T extends Fixture>(upcoming: readonly T[]): T[] | n
   return matchday.length === LIGA_MX_MATCHES_PER_MATCHDAY ? matchday : null;
 }
 
-/** The next matchday opens at 00:00 (Mexico City) of the day after the last match of the current one. */
+/**
+ * The next matchday (or NFL week) opens at 00:00 (Mexico City) of the day after the last
+ * match of the current one.
+ */
 export function matchdayOpensAt(lastKickoff: Date): Date {
   return zonedTime(addDays(localDateOf(lastKickoff), 1), 0, 0);
 }
