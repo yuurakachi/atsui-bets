@@ -81,4 +81,4 @@ npm run lint
 - [x] Formula 1 with Sprint weekends: calendar and results from Jolpica, P1–P10 picks,
       import of the current season
 - [ ] NFL (replacing Yahoo Fantasy)
-- [ ] Push notifications
+- [x] Push notifications: picks open, 10-minute lock warning, round winner (installable app, Web Push)
