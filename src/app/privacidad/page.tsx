@@ -13,7 +13,7 @@ export default function PrivacyPage() {
         ← Atsui bets
       </Link>
       <h1 className="mt-2 text-2xl font-bold">Política de privacidad</h1>
-      <p className="mt-1 text-sm text-muted">Última actualización: 29 de septiembre de 2026</p>
+      <p className="mt-1 text-sm text-muted">Última actualización: 12 de noviembre de 2026</p>
 
       <div className="mt-6 space-y-6 leading-relaxed">
         <section>
@@ -49,11 +49,23 @@ export default function PrivacyPage() {
         </section>
 
         <section>
+          <h2 className="font-semibold">Notificaciones</h2>
+          <p className="mt-1 text-muted">
+            Solo si las activas. Por cada celular donde las actives guardamos, ligada a tu jugador, la dirección que el
+            servicio de notificaciones de tu navegador (Google, Apple o Mozilla) le da a ese celular y dos llaves para
+            cifrar los avisos. No guardamos tu número, tu ubicación ni nada más del celular. Los avisos son de la
+            quiniela: cuándo se abren los pics, si te faltan pics 10 minutos antes de que cierren (también a quien
+            captura tus pics, si autorizaste a alguien) y quién ganó cada jornada. Si las desactivas en Inicio, o
+            el servicio nos dice que ese celular ya no existe, lo borramos.
+          </p>
+        </section>
+
+        <section>
           <h2 className="font-semibold">Con quién los compartimos</h2>
           <p className="mt-1 text-muted">
             Con nadie. No vendemos ni compartimos datos, no mostramos publicidad y no usamos herramientas de
             rastreo. Los datos se guardan en Supabase (base de datos) y la aplicación se sirve desde Vercel, que
-            solo los procesan para que la aplicación funcione.
+            solo los procesan para que la aplicación funcione. Los avisos pasan cifrados por el servicio de notificaciones de tu navegador para llegar a tu celular.
           </p>
         </section>
 

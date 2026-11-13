@@ -9,6 +9,7 @@
 | Database & auth | Supabase (Postgres + Auth + Row Level Security) | Relational data, magic-link / Google login, permissions enforced in the DB |
 | Hosting | Vercel | Zero-config Next.js deploys |
 | Scheduled jobs | Supabase `pg_cron` calling a Vercel route | Save Liga MX and NFL results once a round is over, open the next round |
+| Notifications | Web Push (`web-push`, VAPID keys) and a service worker | Phone notifications without an app store; iPhones need the app on the home screen |
 | Tests | Vitest | The scoring and money rules are pure functions with full test coverage |
 
 Everything fits in the free tiers for a group of ~15 people.
@@ -56,6 +57,37 @@ schedule is best effort: it didn't run at all.
 Admins can always enter or correct results by hand; automatic imports are a
 convenience, never the only path.
 
+## Notifications
+
+Phone notifications (Web Push) for the three pools. The WhatsApp announcement stays
+manual; notifications don't replace it.
+
+| Notice | Who | When |
+|---|---|---|
+| Picks are open | Everyone enrolled in the pool | Once the round shows up on the home screen (the same rule, `shownRounds`); between 22:00 and 9:00 it waits until 9:00. A Sprint weekend's two rounds go in one notice |
+| Picks lock in 10 minutes | Only whoever is missing a pick of what locks, and their delegate (`pick_delegates`) | 10 minutes before each lock time; everything locking at the same time goes in one notice. In F1 a missing position counts |
+| Round winner | Everyone enrolled in the pool | Once the round is scored, automatically or by hand: winners (ties included), points, prize and perfect-round bonuses. A re-score doesn't send it again |
+
+Pools that aren't active yet send nothing. The rules live in `src/domain/notifications.ts`,
+the texts in `src/lib/notifications.ts`, and `src/lib/notify.ts` sends whatever is due by
+reading the database, so it doesn't matter which path created or scored a round.
+
+- A player turns notifications on per phone from the home screen. The phone's push
+  address and keys go to `push_subscriptions` (each player sees and deletes only their
+  own; `save_push_subscription` moves a shared phone to whoever turned them on last).
+  Addresses the push service reports as gone (404/410) are deleted.
+- `push_sent` keeps one key per notice (`opened:<round>`, `winner:<round>`,
+  `closing:<lock time>`). The job inserts the key before sending and only sends if the
+  insert went through, so nothing goes out twice even if two runs overlap; a send that
+  fails isn't retried. Rounds scored before notifications existed were marked as sent.
+- A `pg_cron` job (`push-notifications`) runs every minute, but only calls
+  `/api/cron/notify` when something locks within 10 minutes or a round was scored and
+  that hasn't been handled yet. "Picks are open" is checked by the results job every 30
+  minutes.
+- `public/sw.js` shows the notification and opens the round when it's tapped. The VAPID
+  keys live in Vercel (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
+  `VAPID_SUBJECT`); without them nothing is sent.
+
 ## Data model
 
 The schema lives in [`supabase/migrations`](../supabase/migrations).
@@ -79,6 +111,8 @@ f1_picks            event_id, player_id, position (1–10), driver_id, entered_b
                     copied_from_event_id                     -- set when the lineup was repeated
 round_results       round_id, player_id, points, position, prize_cents
 audit_log           id, actor_id, action, entity, entity_id, payload, created_at
+push_subscriptions  id, player_id, endpoint, p256dh, auth      -- one per phone with notifications on
+push_sent           key                                      -- notices already sent
 ```
 
 Notes:
@@ -165,7 +199,7 @@ with `npx supabase db query --linked -f <file>`. Real family data lives in `data
 
 ## Screens
 
-1. **Home** — pending picks and their deadlines.
+1. **Home** — pending picks and their deadlines, and the switch for phone notifications.
 2. **Make picks** — one card per match; F1 is an ordered P1–P10 picker.
 3. **Round** — everyone's picks (after lock), live results, standings and prize leaders.
    An NFL week is too wide for a phone, so its picks table scrolls sideways between
