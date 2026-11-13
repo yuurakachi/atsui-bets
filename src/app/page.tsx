@@ -3,6 +3,7 @@ import { signOut } from "@/app/auth/actions";
 import { requirePlayer } from "@/lib/dal";
 import { getUpcomingRounds } from "@/lib/rounds";
 import { Logo } from "./logo";
+import { PushToggle } from "./push-toggle";
 import { UpcomingRoundCard } from "./upcoming-round-card";
 import { createClient } from "@/lib/supabase/server";
 import type { Sport } from "@/domain";
@@ -100,6 +101,8 @@ export default async function HomePage() {
           </ul>
         )}
       </section>
+
+      {pools.length > 0 && <PushToggle />}
     </main>
   );
 }

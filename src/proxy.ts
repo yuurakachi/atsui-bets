@@ -1,8 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// /api/cron checks its own secret: the scheduled job has no session.
-const PUBLIC_PATHS = ["/login", "/auth", "/privacidad", "/api/cron"];
+// /api/cron checks its own secret: the scheduled job has no session. The phone fetches the
+// service worker and the manifest without the session cookie.
+const PUBLIC_PATHS = ["/login", "/auth", "/privacidad", "/api/cron", "/sw.js", "/manifest.webmanifest"];
 
 /**
  * Refreshes the Supabase session on every navigation and sends signed-out visitors to
