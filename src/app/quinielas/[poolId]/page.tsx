@@ -146,6 +146,8 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
         <ul className="mt-3 space-y-2">
           {rounds.map((round) => {
             const winners = round.results.filter((r) => r.prizeCents > 0);
+            // A perfect round always wins the round too, so they're among the winners.
+            const perfect = round.results.filter((r) => r.bonusCents > 0);
             return (
               <li key={round.id}>
                 <Link
@@ -153,10 +155,15 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
                   className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent"
                 >
                   <span className="min-w-0">
-                    <span className="flex items-center gap-2">
-                      <span className="font-display text-xl leading-tight font-bold">{round.name}</span>
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="font-display text-xl leading-tight font-bold whitespace-nowrap">{round.name}</span>
+                      {perfect.length > 0 && (
+                        <span className="rounded-full border border-gold bg-gold/15 px-2 py-0.5 text-[0.65rem] font-semibold whitespace-nowrap text-gold">
+                          ★ Perfecta
+                        </span>
+                      )}
                       {!round.settled && (
-                        <span className="rounded-full border border-gold/60 px-2 py-0.5 text-[0.65rem] font-semibold text-gold">
+                        <span className="rounded-full border border-gold/60 px-2 py-0.5 text-[0.65rem] font-semibold whitespace-nowrap text-gold">
                           Pago pendiente
                         </span>
                       )}
@@ -168,6 +175,11 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
                   <span className="shrink-0 text-right font-display text-lg leading-tight font-semibold tabular-nums">
                     {winners[0] ? formatMoney(winners[0].prizeCents) : "—"}
                     {winners.length > 1 && <span className="block text-xs text-muted">c/u</span>}
+                    {perfect.length > 0 && (
+                      <span className="block text-xs font-semibold text-gold">
+                        {formatNet(perfect[0].bonusCents)} bono{perfect.length > 1 && " c/u"}
+                      </span>
+                    )}
                   </span>
                 </Link>
               </li>
