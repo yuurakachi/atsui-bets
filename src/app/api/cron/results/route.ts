@@ -1,5 +1,6 @@
 import { openNextMatchdays, openNextNflWeeks } from "@/lib/auto-rounds";
 import { updateDueResults } from "@/lib/auto-results";
+import { sendDueNotifications } from "@/lib/notify";
 import { createServiceClient } from "@/lib/supabase/service";
 
 // A due round asks ESPN for a few days and saves a handful of rows.
@@ -22,6 +23,10 @@ export async function GET(request: Request) {
   const rounds = await updateDueResults(supabase, new Date(), { dryRun });
   const matchdays = await openNextMatchdays(supabase, new Date(), { dryRun });
   const weeks = await openNextNflWeeks(supabase, new Date(), { dryRun });
+  // Announces what this run opened or scored; a failure here doesn't undo the results.
+  const notifications = dryRun
+    ? null
+    : await sendDueNotifications(supabase, new Date()).catch((e: Error) => ({ error: e.message }));
   const failed = [...rounds, ...matchdays, ...weeks].some((r) => r.error);
-  return Response.json({ dryRun, rounds, matchdays, weeks }, { status: failed ? 502 : 200 });
+  return Response.json({ dryRun, rounds, matchdays, weeks, notifications }, { status: failed ? 502 : 200 });
 }
