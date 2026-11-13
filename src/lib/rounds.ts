@@ -13,6 +13,7 @@ import {
   scoreF1Pick,
   scoreMatchPicks,
   settleRound,
+  shownRounds,
   type MatchOutcome,
   type MatchResult,
   type Sport,
@@ -166,18 +167,9 @@ export const getUpcomingRounds = cache(async (poolIds: string[], playerId: strin
       };
     });
 
-  const nextDeadline = new Map<string, number>();
-  for (const r of upcoming) {
-    if (r.closed) continue;
-    const lock = r.firstLockAt.getTime();
-    nextDeadline.set(r.poolId, Math.min(lock, nextDeadline.get(r.poolId) ?? lock));
-  }
-  return upcoming.filter(
-    (r) =>
-      r.closed ||
-      (r.firstLockAt.getTime() <= nextDeadline.get(r.poolId)! + UPCOMING_WINDOW_MS &&
-        (r.sport !== "f1" || f1PicksShownFrom(r.firstLockAt).getTime() <= now)),
-  );
+  // The same rule decides when the "picks are open" notification goes out.
+  const shown = new Set(shownRounds(upcoming.filter((r) => !r.closed), new Date(now)).map((r) => r.id));
+  return upcoming.filter((r) => r.closed || shown.has(r.id));
 });
 
 export interface OpenRoundProgress {

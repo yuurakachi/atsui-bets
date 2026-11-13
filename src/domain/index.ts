@@ -8,4 +8,5 @@ export * from "./results";
 export * from "./matchdays";
 export * from "./f1";
 export * from "./stats";
+export * from "./notifications";
 export { TIME_ZONE } from "./time";
