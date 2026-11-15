@@ -3,6 +3,7 @@ import {
   CLOSING_NOTICE_MINUTES,
   F1_PICK_POSITIONS,
   closingBatches,
+  poolNotifies,
   quietHours,
   roundOutcome,
   shownRounds,
@@ -30,8 +31,8 @@ const HOUR = 60 * 60;
  * Sends the notifications that are due: picks are open, picks lock in 10 minutes, and
  * round winners. It reads the state of the database, so rounds created or scored by hand
  * and by the automatic jobs are treated the same. Each notice is claimed in push_sent
- * before it's sent, so it never goes out twice. Pools that aren't active yet (only the
- * admin sees them) have their notices claimed but not sent.
+ * before it's sent, so it never goes out twice. Pools that send nothing (not active yet,
+ * or muted like the NFL) have their notices claimed but not sent.
  */
 export async function sendDueNotifications(supabase: Service, now: Date): Promise<NotifyReport> {
   const [pools, enrollments, players, scheduled, completed, announced] = await Promise.all([
@@ -51,7 +52,10 @@ export async function sendDueNotifications(supabase: Service, now: Date): Promis
   }
 
   const pool = new Map(pools.data!.map((p) => [p.id, p]));
-  const active = (poolId: string) => pool.get(poolId)?.status === "active";
+  const sends = (poolId: string) => {
+    const p = pool.get(poolId);
+    return p !== undefined && poolNotifies(p);
+  };
   const name = new Map(players.data!.map((p) => [p.id, playerName(p)]));
   const enrolled = (poolId: string) => enrollments.data!.filter((e) => e.pool_id === poolId).map((e) => e.player_id);
   const roundById = new Map(scheduled.data!.map((r) => [r.id, r]));
@@ -84,7 +88,7 @@ export async function sendDueNotifications(supabase: Service, now: Date): Promis
     }
     for (const [poolId, rounds] of byPool) {
       report.handled.push(...rounds.map((r) => `opened:${r.id}`));
-      if (!active(poolId)) continue;
+      if (!sends(poolId)) continue;
       const p = pool.get(poolId)!;
       const message = openedMessage({
         sport: p.sport,
@@ -129,7 +133,7 @@ export async function sendDueNotifications(supabase: Service, now: Date): Promis
 
     const batches = closingBatches({
       now,
-      slots: due.filter((s) => active(s.poolId)),
+      slots: due.filter((s) => sends(s.poolId)),
       enrollments: enrollments.data!.map((e) => ({ poolId: e.pool_id, playerId: e.player_id })),
       picks: [...counts.values()],
       delegates: delegates.data!.map((d) => ({ poolId: d.pool_id, playerId: d.player_id, delegateId: d.delegate_id })),
@@ -162,7 +166,7 @@ export async function sendDueNotifications(supabase: Service, now: Date): Promis
   const claimedWinners = await claim(supabase, scored.map((r) => `winner:${r.id}`));
   for (const r of scored.filter((r) => claimedWinners.has(`winner:${r.id}`))) {
     report.handled.push(`winner:${r.id}`);
-    if (!active(r.pool_id)) continue;
+    if (!sends(r.pool_id)) continue;
     const { data: results, error } = await supabase
       .from("round_results")
       .select("player_id, points, prize_cents, bonus_cents")

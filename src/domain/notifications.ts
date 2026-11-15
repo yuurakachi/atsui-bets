@@ -8,6 +8,17 @@ import type { Cents, ProfileId, Sport } from "./types";
 /** The "picks lock soon" notice goes out this long before the lock. */
 export const CLOSING_NOTICE_MINUTES = 10;
 
+/** No notices for the NFL: the family plays the 2026 season on Yahoo. Remove it to turn them back on. */
+const MUTED_SPORTS: readonly Sport[] = ["nfl"];
+
+/**
+ * Whether a pool's notices are sent. Notices of other pools are still marked as handled,
+ * so turning a pool on later doesn't send its old ones.
+ */
+export function poolNotifies(pool: { sport: Sport; status: string }): boolean {
+  return pool.status === "active" && !MUTED_SPORTS.includes(pool.sport);
+}
+
 /** Rounds more than this far after a pool's next deadline aren't shown yet (F1 loads the whole season). */
 const SHOWN_WINDOW_MS = 4 * 24 * 60 * 60 * 1000;
 

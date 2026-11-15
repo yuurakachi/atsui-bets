@@ -68,7 +68,7 @@ manual; notifications don't replace it.
 | Picks lock in 10 minutes | Only whoever is missing a pick of what locks, and their delegate (`pick_delegates`) | 10 minutes before each lock time; everything locking at the same time goes in one notice. In F1 a missing position counts |
 | Round winner | Everyone enrolled in the pool | Once the round is scored, automatically or by hand: winners (ties included), points, prize and perfect-round bonuses. A re-score doesn't send it again |
 
-Pools that aren't active yet send nothing. The rules live in `src/domain/notifications.ts`,
+Pools that aren't active yet send nothing, and neither does the NFL for now: the family plays the 2026 season on Yahoo (`MUTED_SPORTS`). Their notices are still marked as handled, so turning them on doesn't send old ones. The rules live in `src/domain/notifications.ts`,
 the texts in `src/lib/notifications.ts`, and `src/lib/notify.ts` sends whatever is due by
 reading the database, so it doesn't matter which path created or scored a round.
 

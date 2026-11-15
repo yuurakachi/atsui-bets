@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closingBatches, quietHours, roundOutcome, shownRounds, type PickSlot } from "./notifications";
+import { closingBatches, poolNotifies, quietHours, roundOutcome, shownRounds, type PickSlot } from "./notifications";
 
 // Mexico City is UTC-6 all year. November 2026: Thu 12, Fri 13, Sun 15, Mon 16 … Sat 21.
 
@@ -165,5 +165,14 @@ describe("roundOutcome", () => {
       perfectIds: ["beto", "ana"],
       bonusEachCents: 1000_00,
     });
+  });
+});
+
+describe("poolNotifies", () => {
+  it("sends notices for active pools, except the NFL (the 2026 season is played on Yahoo)", () => {
+    expect(poolNotifies({ sport: "liga_mx", status: "active" })).toBe(true);
+    expect(poolNotifies({ sport: "f1", status: "active" })).toBe(true);
+    expect(poolNotifies({ sport: "nfl", status: "active" })).toBe(false);
+    expect(poolNotifies({ sport: "liga_mx", status: "upcoming" })).toBe(false);
   });
 });
