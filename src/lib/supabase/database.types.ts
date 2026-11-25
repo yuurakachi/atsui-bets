@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -406,32 +406,41 @@ export type Database = {
       }
       pools: {
         Row: {
+          buy_in_cents: number
           created_at: string
           entry_fee_cents: number
           id: string
           jackpot_opening_cents: number
           name: string
+          playoffs: boolean
           season: string
+          self_signup: boolean
           sport: Database["public"]["Enums"]["sport"]
           status: Database["public"]["Enums"]["pool_status"]
         }
         Insert: {
+          buy_in_cents?: number
           created_at?: string
           entry_fee_cents?: number
           id?: string
           jackpot_opening_cents?: number
           name: string
+          playoffs?: boolean
           season: string
+          self_signup?: boolean
           sport: Database["public"]["Enums"]["sport"]
           status?: Database["public"]["Enums"]["pool_status"]
         }
         Update: {
+          buy_in_cents?: number
           created_at?: string
           entry_fee_cents?: number
           id?: string
           jackpot_opening_cents?: number
           name?: string
+          playoffs?: boolean
           season?: string
+          self_signup?: boolean
           sport?: Database["public"]["Enums"]["sport"]
           status?: Database["public"]["Enums"]["pool_status"]
         }
@@ -657,6 +666,8 @@ export type Database = {
         Returns: boolean
       }
       is_pool_admin: { Args: { p_pool_id: string }; Returns: boolean }
+      join_pool: { Args: { p_pool_id: string }; Returns: undefined }
+      pool_first_lock: { Args: { p_pool_id: string }; Returns: string }
       pool_of_event: { Args: { p_event_id: string }; Returns: string }
       pool_of_round: { Args: { p_round_id: string }; Returns: string }
       save_f1_classification: {

@@ -12,6 +12,7 @@ declare
   u_grandma uuid := gen_random_uuid();
   admin_id uuid; sub_id uuid; p_id uuid; q_id uuid; grandma_id uuid;
   liga uuid; f1 uuid; r1 uuid; r_f1 uuid; e_open uuid; e_locked uuid;
+  po_open uuid; po_closed uuid; r_po uuid;
   f1_open uuid; f1_locked uuid; d1 uuid; d2 uuid; d3 uuid; d_other uuid;
   r_prev uuid; r_next uuid; f1_prev uuid; f1_next uuid;
   n int;
@@ -36,6 +37,17 @@ begin
   insert into public.pools (sport, season, name, status) values ('liga_mx', 'TEST', 'Liga TEST', 'active') returning id into liga;
   insert into public.pools (sport, season, name, status) values ('f1', 'TEST', 'F1 TEST', 'active') returning id into f1;
   insert into public.pools (sport, season, name, status) values ('nfl', 'TEST', 'NFL TEST', 'upcoming');
+  -- Playoff pools taking sign-ups: one before its first lock, one after.
+  insert into public.pools (sport, season, name, status, entry_fee_cents, buy_in_cents, self_signup, playoffs)
+    values ('liga_mx', 'TEST PO OPEN', 'Liguilla abierta', 'active', 0, 30000, true, true) returning id into po_open;
+  insert into public.rounds (pool_id, name, kind, ordinal) values (po_open, 'Cuartos', 'matchday', 1) returning id into r_po;
+  insert into public.events (round_id, home_team, away_team, starts_at, lock_at)
+    values (r_po, 'A', 'B', now() + interval '2 days', now() + interval '1 day');
+  insert into public.pools (sport, season, name, status, entry_fee_cents, buy_in_cents, self_signup, playoffs)
+    values ('liga_mx', 'TEST PO CLOSED', 'Liguilla cerrada', 'active', 0, 30000, true, true) returning id into po_closed;
+  insert into public.rounds (pool_id, name, kind, ordinal) values (po_closed, 'Cuartos', 'matchday', 1) returning id into r_po;
+  insert into public.events (round_id, home_team, away_team, starts_at, lock_at)
+    values (r_po, 'A', 'B', now() - interval '1 hour', now() - interval '2 hours');
   insert into public.pool_admins values (liga, sub_id);
   insert into public.enrollments (pool_id, player_id) values (liga, p_id), (liga, q_id), (liga, grandma_id), (liga, sub_id), (f1, p_id);
   -- Q may enter Grandma's picks.
@@ -314,6 +326,43 @@ begin
 
   reset role;
 
+  -- Signing up to a playoff pool (as player Q) ---------------------------------------------
+  perform set_config('request.jwt.claims', json_build_object('sub', u_q, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+
+  begin
+    perform public.join_pool(po_open);
+    perform public.join_pool(po_open);
+    select count(*) into n from public.enrollments where pool_id = po_open and player_id = q_id;
+    report := report || format(E'\n%s player signs up before the first lock, once (%s rows)', case when n = 1 then 'PASS' else 'FAIL' end, n);
+    if n <> 1 then failures := failures + 1; end if;
+  exception when others then
+    report := report || E'\nFAIL player signs up before the first lock: ' || sqlerrm; failures := failures + 1;
+  end;
+
+  begin
+    perform public.join_pool(po_closed);
+    report := report || E'\nFAIL player signed up after the first lock'; failures := failures + 1;
+  exception when others then
+    report := report || E'\nPASS sign-up closes when the first match locks';
+  end;
+
+  begin
+    perform public.join_pool(liga);
+    report := report || E'\nFAIL player joined a pool without sign-ups'; failures := failures + 1;
+  exception when others then
+    report := report || E'\nPASS only pools that take sign-ups can be joined';
+  end;
+
+  begin
+    insert into public.enrollments (pool_id, player_id) values (po_open, p_id);
+    report := report || E'\nFAIL player enrolled someone else'; failures := failures + 1;
+  exception when others then
+    report := report || E'\nPASS players cannot enroll anyone directly';
+  end;
+
+  reset role;
+
   -- Signed-in user who is not a registered player ---------------------------------------
   perform set_config('request.jwt.claims', json_build_object('sub', u_out, 'role', 'authenticated')::text, true);
   set local role authenticated;
@@ -325,6 +374,13 @@ begin
   select count(*) into n from public.match_picks;
   report := report || format(E'\n%s unregistered user sees no picks (saw %s)', case when n = 0 then 'PASS' else 'FAIL' end, n);
   if n <> 0 then failures := failures + 1; end if;
+
+  begin
+    perform public.join_pool(po_open);
+    report := report || E'\nFAIL unregistered user signed up to a pool'; failures := failures + 1;
+  exception when others then
+    report := report || E'\nPASS unregistered users cannot sign up';
+  end;
 
   reset role;
 

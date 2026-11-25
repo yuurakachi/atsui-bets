@@ -45,7 +45,9 @@ export async function openNextMatchdays(
     .from("pools")
     .select("id, name, rounds(name, ordinal, events(external_id, home_team, away_team, starts_at, result))")
     .eq("sport", "liga_mx")
-    .eq("status", "active");
+    .eq("status", "active")
+    // A liguilla's phases don't follow the regular season's shape: they're loaded by hand.
+    .eq("playoffs", false);
   if (error) throw new Error(error.message);
 
   const reports: MatchdayReport[] = [];

@@ -58,10 +58,13 @@ export function winnerMessage(input: {
 }): PushMessage {
   const pts = `${input.points} ${input.points === 1 ? "pt" : "pts"}`;
   const each = (several: boolean) => (several ? " c/u" : "");
+  // A liguilla phase has no prize: the pot is paid at the end.
+  const prize = (several: boolean) =>
+    input.prizeEachCents > 0 ? `: ${formatMoney(input.prizeEachCents)}${each(several)}.` : ".";
   const lines = [
     input.winners.length === 1
-      ? `Ganó ${input.winners[0]} con ${pts}: ${formatMoney(input.prizeEachCents)}.`
-      : `Empate de ${list(input.winners)} con ${pts}: ${formatMoney(input.prizeEachCents)} c/u.`,
+      ? `Ganó ${input.winners[0]} con ${pts}${prize(false)}`
+      : `Empate de ${list(input.winners)} con ${pts}${prize(true)}`,
   ];
   if (input.perfect.length > 0) {
     lines.push(

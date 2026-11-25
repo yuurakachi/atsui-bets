@@ -95,7 +95,8 @@ The schema lives in [`supabase/migrations`](../supabase/migrations).
 ```
 players             id, display_name, nickname, email, user_id → auth.users, is_admin
 pools               id, sport (liga_mx | nfl | f1), season, status, entry_fee_cents,
-                    jackpot_opening_cents
+                    jackpot_opening_cents, buy_in_cents, self_signup, playoffs
+                                                             -- liguilla: one buy-in, sign-up, phases by hand
 pool_admins         pool_id, player_id                       -- sub-admins per pool
 pick_delegates      pool_id, player_id, delegate_id          -- who may enter whose picks
 enrollments         pool_id, player_id                       -- season-long membership
@@ -159,6 +160,8 @@ Enforced in Postgres, so they hold no matter which client talks to the database.
 
 - Anonymous visitors and signed-in users who are not a registered player see nothing.
 - Players read their own picks at any time and others' picks only after the lock.
+- Players join a pool themselves only through `join_pool()`: pools with `self_signup`,
+  before their first match locks. Otherwise enrollments are written by pool admins.
 - Players write only their own picks, only in pools they're enrolled in, and only
   before the lock.
 - A delegate (`pick_delegates`) reads and writes one player's picks in one pool, under

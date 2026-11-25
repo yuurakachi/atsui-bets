@@ -62,6 +62,12 @@ describe("closingMessage", () => {
 });
 
 describe("winnerMessage", () => {
+  it("leaves out the money in a liguilla phase, which has no prize", () => {
+    expect(
+      winnerMessage({ sport: "liga_mx", poolName: "Liguilla", roundName: "Cuartos", winners: ["Ana"], points: 6, prizeEachCents: 0, perfect: [], bonusEachCents: 0 }).body,
+    ).toBe("Ganó Ana con 6 pts.");
+  });
+
   it("names the winner with points and prize", () => {
     expect(
       winnerMessage({ sport: "nfl", poolName: "NFL 2026", roundName: "Semana 10", winners: ["Ana"], points: 12, prizeEachCents: 1125_00, perfect: [], bonusEachCents: 0 }),

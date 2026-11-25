@@ -32,7 +32,7 @@ export interface SeasonRow {
   points: number;
   position: number;
   wonCents: Cents;
-  /** Entry fees for every completed round: everyone enrolled pays every round. */
+  /** Entry fees for every completed round (everyone enrolled pays every round), plus a playoff pool's buy-in. */
   paidCents: Cents;
   netCents: Cents;
   /** Jackpot prize this player would take if the season ended today. */
@@ -45,12 +45,26 @@ export interface PoolPeriod {
   settled: boolean;
 }
 
+export interface JackpotAward {
+  kind: PrizeKind;
+  /** Each winner's share. */
+  cents: Cents;
+  names: string[];
+}
+
 export interface PoolOverview {
   id: string;
   name: string;
   sport: Sport;
+  /** The season is over: the jackpot awards are final. */
+  finished: boolean;
+  /** A playoff pool (liguilla): one buy-in per player instead of a fee per round. */
+  playoffs: boolean;
+  buyInCents: Cents;
   entryFeeCents: Cents;
   jackpotBalanceCents: Cents;
+  /** How the jackpot splits with today's standings (final once the season is over). */
+  jackpotAwards: JackpotAward[];
   /** Completed rounds, in order. */
   rounds: PoolRound[];
   season: SeasonRow[];
@@ -67,7 +81,7 @@ export const getPoolOverview = cache(async (poolId: string): Promise<PoolOvervie
   const { data: pool } = await supabase
     .from("pools")
     .select(
-      `id, name, sport, entry_fee_cents, jackpot_opening_cents,
+      `id, name, sport, status, playoffs, buy_in_cents, entry_fee_cents, jackpot_opening_cents,
        enrollments(player:players(id, display_name, nickname)),
        settlement_periods(id, cutoff_at, settled_at),
        rounds(id, name, ordinal, status, pot_cents, jackpot_cents, settlement_period_id,
@@ -114,12 +128,17 @@ export const getPoolOverview = cache(async (poolId: string): Promise<PoolOvervie
   }
 
   const bonusesPaid = results.reduce((acc, r) => acc + r.bonusCents, 0);
+  // A playoff pool's buy-ins all go to the jackpot.
   const jackpotBalanceCents =
-    pool.jackpot_opening_cents + rounds.reduce((acc, r) => acc + r.jackpotCents, 0) - bonusesPaid;
+    pool.jackpot_opening_cents +
+    pool.buy_in_cents * players.size +
+    rounds.reduce((acc, r) => acc + r.jackpotCents, 0) -
+    bonusesPaid;
 
   const entries = [...totals].map(([profileId, t]) => ({ profileId, points: t.points }));
   const jackpotPrizes = new Map<string, { kind: PrizeKind; cents: Cents }>();
-  for (const award of distributePrizes(jackpotBalanceCents, entries).awards) {
+  const { awards } = distributePrizes(jackpotBalanceCents, entries);
+  for (const award of awards) {
     for (const id of award.profileIds) {
       // When 7th and second-to-last coincide, the same person holds both prizes.
       const previous = jackpotPrizes.get(id);
@@ -130,7 +149,7 @@ export const getPoolOverview = cache(async (poolId: string): Promise<PoolOvervie
     }
   }
 
-  const paidCents = rounds.length * pool.entry_fee_cents;
+  const paidCents = rounds.length * pool.entry_fee_cents + pool.buy_in_cents;
   const season: SeasonRow[] = rankEntries(entries).flatMap((group) =>
     group.profileIds.map((id) => {
       const wonCents = totals.get(id)!.wonCents;
@@ -152,7 +171,15 @@ export const getPoolOverview = cache(async (poolId: string): Promise<PoolOvervie
     id: pool.id,
     name: pool.name,
     sport: pool.sport,
+    finished: pool.status === "finished",
+    playoffs: pool.playoffs,
+    buyInCents: pool.buy_in_cents,
     jackpotBalanceCents,
+    jackpotAwards: awards.map((a) => ({
+      kind: a.kind,
+      cents: a.perPersonCents,
+      names: a.profileIds.map((id) => players.get(id) ?? "?").sort((x, y) => x.localeCompare(y)),
+    })),
     entryFeeCents: pool.entry_fee_cents,
     rounds,
     season,
@@ -163,3 +190,44 @@ export const getPoolOverview = cache(async (poolId: string): Promise<PoolOvervie
     })),
   };
 });
+
+export interface OpenSignup {
+  id: string;
+  name: string;
+  sport: Sport;
+  buyInCents: Cents;
+  players: number;
+  /** Sign-up closes when the first match locks; null while the pool has no matches yet. */
+  closesAt: Date | null;
+}
+
+/**
+ * Pools the player can still join themselves (a liguilla, for instance): they take
+ * sign-ups, the player isn't in them yet and their first match hasn't locked.
+ */
+export async function getOpenSignups(playerId: string): Promise<OpenSignup[]> {
+  const supabase = await createClient();
+  const { data: pools } = await supabase
+    .from("pools")
+    .select("id, name, sport, buy_in_cents, enrollments(player_id), rounds(events(lock_at))")
+    .eq("self_signup", true)
+    .eq("status", "active");
+
+  const now = new Date();
+  return (pools ?? []).flatMap((pool) => {
+    if (pool.enrollments.some((e) => e.player_id === playerId)) return [];
+    const locks = pool.rounds.flatMap((r) => r.events.map((e) => new Date(e.lock_at).getTime()));
+    const closesAt = locks.length ? new Date(Math.min(...locks)) : null;
+    if (closesAt && closesAt <= now) return [];
+    return [
+      {
+        id: pool.id,
+        name: pool.name,
+        sport: pool.sport,
+        buyInCents: pool.buy_in_cents,
+        players: pool.enrollments.length,
+        closesAt,
+      },
+    ];
+  });
+}

@@ -1,12 +1,24 @@
 import Link from "next/link";
 import { signOut } from "@/app/auth/actions";
 import { requirePlayer } from "@/lib/dal";
+import { formatMoneyCompact } from "@/lib/format";
+import { getOpenSignups } from "@/lib/pools";
 import { getUpcomingRounds } from "@/lib/rounds";
 import { Logo } from "./logo";
 import { PushToggle } from "./push-toggle";
+import { SignupCard } from "./signup-card";
 import { UpcomingRoundCard } from "./upcoming-round-card";
 import { createClient } from "@/lib/supabase/server";
-import type { Sport } from "@/domain";
+import { TIME_ZONE, type Sport } from "@/domain";
+
+const closesFormat = new Intl.DateTimeFormat("es-MX", {
+  timeZone: TIME_ZONE,
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 const SPORT_LABEL: Record<Sport, string> = {
   liga_mx: "Liga MX",
@@ -23,7 +35,10 @@ export default async function HomePage() {
     .eq("player_id", player.id);
 
   const pools = (enrollments ?? []).map((e) => e.pool).filter((p) => p !== null);
-  const upcoming = await getUpcomingRounds(pools.map((p) => p.id), player.id);
+  const [upcoming, signups] = await Promise.all([
+    getUpcomingRounds(pools.map((p) => p.id), player.id),
+    getOpenSignups(player.id),
+  ]);
   const poolName = new Map(pools.map((p) => [p.id, p.name]));
 
   return (
@@ -73,6 +88,24 @@ export default async function HomePage() {
         </Link>
       )}
 
+      {signups.length > 0 && (
+        <section className="mt-8">
+          <h2>Quinielas abiertas</h2>
+          <div className="mt-3 space-y-2">
+            {signups.map((pool) => (
+              <SignupCard
+                key={pool.id}
+                poolId={pool.id}
+                name={pool.name}
+                buyIn={formatMoneyCompact(pool.buyInCents)}
+                players={pool.players}
+                closes={pool.closesAt && closesFormat.format(pool.closesAt)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="mt-8">
         <h2>Tus quinielas</h2>
         {pools.length === 0 ? (
@@ -93,6 +126,7 @@ export default async function HomePage() {
                       {SPORT_LABEL[pool.sport]}
                     </span>
                     <span className="block truncate font-display text-xl font-bold uppercase">{pool.name}</span>
+                    {pool.status === "finished" && <span className="block text-xs font-semibold text-gold">Temporada terminada</span>}
                   </span>
                   <span aria-hidden="true" className="text-muted">→</span>
                 </Link>

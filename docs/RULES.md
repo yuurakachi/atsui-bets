@@ -33,7 +33,8 @@ Terminology:
 
 Details:
 
-- **Liga MX**: regular season only; the playoffs (*liguilla*) are not played.
+- **Liga MX**: the regular season pool covers the 17 matchdays only; the playoffs
+  (*liguilla*) are a separate pool (§8).
   A postponed match does not count in its original matchday (nobody scores it there).
   When it is rescheduled it joins the matchday of the week it is played, as one more
   match: everyone picks it again and it scores like any other, and it locks 5 minutes
@@ -136,6 +137,10 @@ Examples with 15 participants:
 - Three people tied at positions 6–8 → the range contains 7 → they split the 20 %.
 - Positions 13–15 tied → the range contains 14 (N − 1) → they split the 10 %.
 
+A season ends after its last matchday: the standings are final, the pool is marked as
+finished and its jackpot is paid at the next meeting to the 1st, 7th and second-to-last
+as above.
+
 ## 6. Monthly settlement
 
 Money does not change hands per round. The family meets once a month, on the weekend
@@ -174,3 +179,19 @@ are paid out, and the rest is kept for the pool's jackpot.
 Every admin action (pick entered on someone's behalf, result corrected, payment
 recorded, period settled) is written to the audit log with who and when. So is every
 pick a delegate enters.
+
+## 8. Liguilla (Liga MX playoffs)
+
+The liguilla is its own pool, separate from the regular season.
+
+- **Sign-up**: any registered player can join from the app ("Me apunto") until the
+  first match of the liguilla locks. After that nobody joins.
+- **Money**: a one-time buy-in of **$300 MXN** per player; there is no fee per round,
+  no weekly prize and no perfect-round bonus. The whole pot (buy-ins × players) is paid
+  at the end with the season-jackpot split (§5): 1st 70 %, 7th 20 %, second-to-last 10 %,
+  ties split as usual.
+- **Rounds**: each phase (quarterfinals, semifinals, final) is a round with both legs,
+  loaded by the pool's admins; they don't open automatically.
+- **Picks**: Home / Draw / Away per match, 1 point each, locking 5 minutes before
+  kickoff. A match goes to whoever wins it, including extra time and penalties; it is a
+  draw only if it ends level with no winner.

@@ -40,6 +40,8 @@ export function RoundLoader(props: {
   to: string;
   /** NFL only: the week to load, asked to ESPN by number instead of by dates. */
   nflWeek?: { season: string; week: number };
+  /** A liguilla: its phases don't have nine matches. */
+  playoffs?: boolean;
   /** Matches already in a round of this pool, by ESPN id, with that round's name. */
   taken: Record<string, string>;
   /** Matches that didn't count in their round and haven't been played in another one. */
@@ -183,7 +185,7 @@ export function RoundLoader(props: {
                 </div>
               )}
 
-              {props.sport === "liga_mx" && chosen.length !== LIGA_MX_MATCHES_PER_MATCHDAY && (
+              {props.sport === "liga_mx" && !props.playoffs && chosen.length !== LIGA_MX_MATCHES_PER_MATCHDAY && (
                 <p role="status" className="mt-4 rounded-lg border border-gold/50 bg-gold/10 px-3 py-2 text-sm">
                   Hay {chosen.length} {chosen.length === 1 ? "partido marcado" : "partidos marcados"}; una jornada
                   normal tiene {LIGA_MX_MATCHES_PER_MATCHDAY}.{" "}

@@ -30,7 +30,7 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
 
   const supabase = await createClient();
   const [{ data: pool }, { data: rounds }, { data: enrollments }, openRounds, requestHeaders] = await Promise.all([
-    supabase.from("pools").select("id, name, sport, season").eq("id", poolId).single(),
+    supabase.from("pools").select("id, name, sport, season, playoffs").eq("id", poolId).single(),
     supabase
       .from("rounds")
       .select("id, name, ordinal, status, events(id, external_id, starts_at, lock_at, home_team, away_team, result), period:settlement_periods(settled_at)")
@@ -54,7 +54,7 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
   // one hasn't an hour later (the job runs every 30 minutes), it's left to load by hand.
   const lastKickoff = last?.events.length ? Math.max(...last.events.map((e) => new Date(e.starts_at).getTime())) : null;
   const opensAt =
-    pool.sport !== "f1" && last && last.ordinal < (nfl ? NFL_REGULAR_SEASON_WEEKS : LIGA_MX_MATCHDAYS) && lastKickoff !== null
+    pool.sport !== "f1" && !pool.playoffs && last && last.ordinal < (nfl ? NFL_REGULAR_SEASON_WEEKS : LIGA_MX_MATCHDAYS) && lastKickoff !== null
       ? matchdayOpensAt(new Date(lastKickoff))
       : null;
   const notOpened = opensAt !== null && new Date().getTime() >= opensAt.getTime() + 60 * 60 * 1000;
@@ -161,6 +161,7 @@ export default async function PoolAdminPage({ params }: PageProps<"/quinielas/[p
                 nflWeek={nfl ? { season: pool.season, week: nextOrdinal } : undefined}
                 taken={taken}
                 postponed={nfl ? [] : postponed}
+                playoffs={pool.playoffs}
               />
             </>
           )}

@@ -34,7 +34,14 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
         ← Inicio
       </Link>
       <div className="mt-2 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">{pool.name}</h1>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold">{pool.name}</h1>
+          {pool.finished && (
+            <span className="mt-1 inline-block rounded-full border border-gold bg-gold/15 px-2 py-0.5 text-xs font-semibold text-gold">
+              Temporada terminada
+            </span>
+          )}
+        </div>
         {manager && (
           <Link
             href={`/quinielas/${pool.id}/admin`}
@@ -73,9 +80,37 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
       )}
 
       <section className="mt-6 rounded-2xl border-2 border-accent bg-surface px-5 py-4">
-        <p className="text-sm font-medium text-muted">Acumulado de la temporada</p>
+        <p className="text-sm font-medium text-muted">
+          {pool.playoffs ? "Bolsa de la liguilla" : "Acumulado de la temporada"}
+        </p>
         <p className="font-display text-5xl leading-none font-bold text-accent tabular-nums">{formatMoney(pool.jackpotBalanceCents)}</p>
-        <p className="mt-1.5 text-sm text-muted">Se reparte al final: 1° 70 %, lucky 7 20 %, bobby 10 %.</p>
+        {pool.finished ? (
+          <>
+            <p className="mt-1.5 text-sm text-muted">Así quedó el reparto; se paga en la próxima reunión.</p>
+            <ul className="mt-3 space-y-2">
+              {pool.jackpotAwards.map((award) => (
+                <li key={award.kind} className="flex items-center justify-between gap-3">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="shrink-0 rounded-full border border-gold bg-gold/15 px-2 py-0.5 text-xs font-semibold text-gold">
+                      {JACKPOT_LABEL[award.kind]}
+                    </span>
+                    <span className="truncate font-medium">{award.names.join(", ")}</span>
+                  </span>
+                  <span className="shrink-0 text-right font-display text-lg font-bold tabular-nums">
+                    {formatMoney(award.cents)}
+                    {award.names.length > 1 && <span className="block text-xs font-normal text-muted">c/u</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="mt-1.5 text-sm text-muted">
+            {pool.playoffs &&
+              `${formatMoneyCompact(pool.buyInCents)} por jugador × ${pool.season.length} ${pool.season.length === 1 ? "jugador" : "jugadores"}. `}
+            Se reparte al final: 1° 70 %, lucky 7 20 %, bobby 10 %.
+          </p>
+        )}
       </section>
 
       <Link
@@ -114,7 +149,7 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
                   </Link>
                   {row.jackpotPrize && (
                     <span
-                      title={`Hoy se llevaría ${formatMoney(row.jackpotPrize.cents)} del acumulado`}
+                      title={`${pool.finished ? "Se lleva" : "Hoy se llevaría"} ${formatMoney(row.jackpotPrize.cents)} del acumulado`}
                       className="shrink-0 rounded-full border border-gold/60 px-1.5 py-0.5 text-[0.65rem] font-semibold text-gold"
                     >
                       {JACKPOT_LABEL[row.jackpotPrize.kind]}
@@ -136,8 +171,10 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
         </div>
         <p className="mt-2 text-xs text-muted">
           Ganado: premios semanales y bonos de jornada perfecta. Neto: lo ganado menos lo pagado
-          ({formatMoneyCompact(pool.season[0]?.paidCents ?? 0)} en la temporada). El acumulado aún no cuenta;
-          las etiquetas marcan quién se lo llevaría si la temporada terminara hoy.
+          ({formatMoneyCompact(pool.season[0]?.paidCents ?? 0)} en la temporada).{" "}
+          {pool.finished
+            ? "La temporada terminó: las etiquetas marcan quién se lleva el acumulado."
+            : `${pool.playoffs ? "La bolsa" : "El acumulado"} aún no cuenta; las etiquetas marcan quién se lo llevaría si terminara hoy.`}
         </p>
       </section>
 
