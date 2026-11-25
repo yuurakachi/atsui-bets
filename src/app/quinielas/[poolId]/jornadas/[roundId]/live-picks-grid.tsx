@@ -44,9 +44,12 @@ export function LivePicksGrid({ sport, events, players, picks, currentPlayerId }
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const pending = events.filter((e) => !e.result && e.externalId);
-    if (pending.length === 0) return;
-    const dates = pending.map((e) => day(new Date(e.startsAt))).sort();
+    // Scores come only from ESPN (a result is just who won), so finished matches are asked
+    // for too, once; it only keeps polling while one is pending.
+    const withScore = events.filter((e) => e.externalId);
+    const pending = withScore.filter((e) => !e.result);
+    if (withScore.length === 0) return;
+    const dates = withScore.map((e) => day(new Date(e.startsAt))).sort();
     let timer: ReturnType<typeof setTimeout> | undefined;
     let stopped = false;
     let matches = new Map<string, EspnMatch>();
