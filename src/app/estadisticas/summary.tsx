@@ -2,7 +2,7 @@ import Link from "next/link";
 import { netByMeeting, TIME_ZONE, type StandingSummary } from "@/domain";
 import { formatMoneyCompact, formatNet } from "@/lib/format";
 import type { PoolStats, StatsPlayer } from "@/lib/stats";
-import { NetChart } from "./charts";
+import { NetChart } from "./net-chart";
 import { countRounds, JACKPOT_LABEL, pickerOptions, roundNoun } from "./labels";
 import { PlayerPicker } from "./player-picker";
 
@@ -68,6 +68,7 @@ export function StatsSummary({
                       .join(", ")}.`}
                     points={meetings.map((m) => ({
                       label: m.cutoffAt ? meetingMonth.format(m.cutoffAt).replace(".", "") : "fin",
+                      title: m.cutoffAt ? `Reunión del ${meetingDate.format(m.cutoffAt)}` : "Al final de la temporada",
                       cents: m.cumulativeCents,
                       pending: !m.settled,
                       closing: m.cutoffAt === null,

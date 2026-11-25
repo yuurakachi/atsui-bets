@@ -2,7 +2,8 @@ import Link from "next/link";
 import { TIME_ZONE, type Tally } from "@/domain";
 import { formatMoneyCompact, formatNet } from "@/lib/format";
 import type { PoolPickStats, PoolStats, StatsPlayer } from "@/lib/stats";
-import { NetChart, PointsChart, StandingChart } from "./charts";
+import { PointsChart, StandingChart } from "./charts";
+import { NetChart } from "./net-chart";
 import { countRounds, JACKPOT_LABEL, pickerOptions, roundNoun, shortRoundLabel, SPORT_LABEL } from "./labels";
 import { PlayerPicker } from "./player-picker";
 import { Legend, toneOf } from "./summary";
@@ -188,10 +189,10 @@ export function PoolDetail({
                     pool.closing ? `, al cerrar la temporada ${formatNet(pool.netCents)}` : ""
                   }.`}
                   points={[
-                    ...rounds.map((r, i) => ({ label: labels[i], cents: r.netCents, won: r.won })),
+                    ...rounds.map((r, i) => ({ label: labels[i], title: r.name, cents: r.netCents, won: r.won })),
                     // What changes hands when the season closes: the jackpot prize and a playoff buy-in.
                     ...(pool.closing
-                      ? [{ label: "fin", cents: pool.netCents, pending: !pool.closing.paid, won: pool.closing.prizeCents > 0, closing: true }]
+                      ? [{ label: "fin", title: "Cierre de temporada", cents: pool.netCents, pending: !pool.closing.paid, won: pool.closing.prizeCents > 0, closing: true }]
                       : []),
                   ]}
                 />
