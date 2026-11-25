@@ -7,6 +7,7 @@ import {
   nextMeetingLine,
   orderByPosition,
   roundHistory,
+  seasonClose,
   standingSummary,
   summarizeHistory,
   type Cents,
@@ -64,20 +65,38 @@ export interface NextMeeting {
   netCents: Cents;
 }
 
+/** What changes hands when the season closes: the jackpot prize, minus a playoff buy-in. */
+export interface ClosingPayment {
+  /** Positive: collects. Negative: pays. */
+  cents: Cents;
+  prizeCents: Cents;
+  buyInCents: Cents;
+  /** The meeting that pays it: the one of the season's last round; null while the season is on. */
+  cutoffAt: Date | null;
+  paid: boolean;
+}
+
 export interface PoolStats {
   id: string;
   name: string;
   sport: Sport;
+  /** The season is over: standings and jackpot are final. */
+  finished: boolean;
+  /** Finished and every round paid: nothing left to settle. */
+  closed: boolean;
+  playoffs: boolean;
   standing: StandingSummary;
+  /** Weekly prizes and bonuses, plus the jackpot prize once the season is over. */
   wonCents: Cents;
   paidCents: Cents;
   netCents: Cents;
   jackpotPrize: SeasonRow["jackpotPrize"];
+  closing: ClosingPayment | null;
   rounds: StatsRound[];
   summary: HistorySummary;
-  /** Each round's own net with the meeting that settles it, in round order. */
+  /** Each round's own net with the meeting that settles it, in round order, then the closing payment. */
   money: RoundMoney[];
-  /** The player's line in the pool's open settlement period, if it has rounds to pay. */
+  /** The player's line in the pool's open settlement period, if it has rounds to pay (rounds only). */
   nextMeeting: NextMeeting | null;
 }
 
@@ -139,25 +158,42 @@ export function buildPoolStats(playerId: string, pool: PoolOverview): PoolStats 
     playerId,
   );
 
+  // The buy-in is already in the standings' "paid"; the prize joins "won" once it's final.
+  const close = seasonClose(pool.finished, row.jackpotPrize?.cents ?? 0, pool.buyInCents);
+  const closingPeriod = pool.finished ? periods.get(pool.rounds.at(-1)?.periodId ?? "") : undefined;
+  const closing = close && {
+    ...close,
+    cutoffAt: closingPeriod?.cutoffAt ?? null,
+    paid: closingPeriod?.settled ?? false,
+  };
+  const wonCents = row.wonCents + (close?.prizeCents ?? 0);
+
   return {
     id: pool.id,
     name: pool.name,
     sport: pool.sport,
+    finished: pool.finished,
+    closed: pool.finished && pool.rounds.every((r) => r.settled),
+    playoffs: pool.playoffs,
     standing,
-    wonCents: row.wonCents,
+    wonCents,
     paidCents: row.paidCents,
-    netCents: row.netCents,
+    netCents: wonCents - row.paidCents,
     jackpotPrize: row.jackpotPrize,
+    closing,
     rounds,
     summary: summarizeHistory(history),
-    money: history.map((line) => {
-      const period = periods.get(roundOf.get(line.roundId)!.periodId ?? "");
-      return {
-        cutoffAt: period?.cutoffAt ?? null,
-        settled: period?.settled ?? false,
-        netCents: line.wonCents - line.feeCents,
-      };
-    }),
+    money: [
+      ...history.map((line) => {
+        const period = periods.get(roundOf.get(line.roundId)!.periodId ?? "");
+        return {
+          cutoffAt: period?.cutoffAt ?? null,
+          settled: period?.settled ?? false,
+          netCents: line.wonCents - line.feeCents,
+        };
+      }),
+      ...(closing ? [{ cutoffAt: closing.cutoffAt, settled: closing.paid, netCents: closing.cents }] : []),
+    ],
     nextMeeting: next && { cutoffAt: next.cutoffAt, rounds: next.line.rounds, netCents: next.line.netCents },
   };
 }

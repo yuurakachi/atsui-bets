@@ -4,6 +4,7 @@ import {
   matchPickStats,
   netByMeeting,
   nextMeetingLine,
+  seasonClose,
   roundHistory,
   standingSummary,
   summarizeHistory,
@@ -191,6 +192,26 @@ describe("netByMeeting", () => {
       { cutoffAt: oct, settled: true, netCents: 800_00 },
     ]);
     expect(meetings.map((m) => [m.cutoffAt, m.cumulativeCents])).toEqual([[oct, 800_00], [null, 700_00]]);
+  });
+});
+
+describe("seasonClose", () => {
+  it("pays the jackpot prize once the season is over", () => {
+    expect(seasonClose(true, 2100_00, 0)).toEqual({ cents: 2100_00, prizeCents: 2100_00, buyInCents: 0 });
+  });
+
+  it("doesn't count a prize while the season is still on", () => {
+    expect(seasonClose(false, 2100_00, 0)).toBeNull();
+  });
+
+  it("takes a playoff buy-in at the end, with or without a prize", () => {
+    expect(seasonClose(true, 840_00, 300_00)).toEqual({ cents: 540_00, prizeCents: 840_00, buyInCents: 300_00 });
+    expect(seasonClose(true, 0, 300_00)?.cents).toBe(-300_00);
+    expect(seasonClose(false, 840_00, 300_00)).toEqual({ cents: -300_00, prizeCents: 0, buyInCents: 300_00 });
+  });
+
+  it("is nothing for a finished season without a prize", () => {
+    expect(seasonClose(true, 0, 0)).toBeNull();
   });
 });
 

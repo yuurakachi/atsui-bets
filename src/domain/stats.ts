@@ -232,6 +232,24 @@ export function netByMeeting(rounds: readonly RoundMoney[]): MeetingNet[] {
     .map((meeting) => ({ ...meeting, cumulativeCents: (cumulativeCents += meeting.netCents) }));
 }
 
+export interface SeasonClose {
+  /** Positive: collects. Negative: pays. */
+  cents: Cents;
+  prizeCents: Cents;
+  buyInCents: Cents;
+}
+
+/**
+ * What changes hands when a season closes, apart from its rounds: the jackpot prize,
+ * which counts once the season is over (docs/RULES.md §5), minus a playoff pool's
+ * buy-in, which is paid at the end with the prizes (§8). Null when it is nothing.
+ */
+export function seasonClose(finished: boolean, jackpotPrizeCents: Cents, buyInCents: Cents): SeasonClose | null {
+  const prizeCents = finished ? jackpotPrizeCents : 0;
+  if (prizeCents === 0 && buyInCents === 0) return null;
+  return { cents: prizeCents - buyInCents, prizeCents, buyInCents };
+}
+
 export interface MeetingPeriod {
   id: string;
   cutoffAt: Date;
