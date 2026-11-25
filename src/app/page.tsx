@@ -31,13 +31,16 @@ export default async function HomePage() {
   const supabase = await createClient();
   const { data: enrollments } = await supabase
     .from("enrollments")
-    .select("pool:pools(id, name, sport, status)")
+    .select("pool:pools(id, name, sport, status, rounds(status, period:settlement_periods(settled_at)))")
     .eq("player_id", player.id);
 
   const pools = (enrollments ?? []).map((e) => e.pool).filter((p) => p !== null);
-  // Finished seasons go in their own list, so the ones being played stay up front.
-  const active = pools.filter((p) => p.status !== "finished");
-  const finished = pools.filter((p) => p.status === "finished");
+  // A finished season moves to its own list once everything is paid: every scored round
+  // in a settled meeting. Until then it stays up front, flagged as finished.
+  const paidUp = (pool: (typeof pools)[number]) =>
+    pool.rounds.every((r) => r.status !== "completed" || r.period?.settled_at != null);
+  const finished = pools.filter((p) => p.status === "finished" && paidUp(p));
+  const active = pools.filter((p) => !finished.includes(p));
   const [upcoming, signups] = await Promise.all([
     getUpcomingRounds(pools.map((p) => p.id), player.id),
     getOpenSignups(player.id),
@@ -119,7 +122,7 @@ export default async function HomePage() {
           <ul className="mt-3 space-y-2">
             {active.map((pool) => (
               <li key={pool.id}>
-                <PoolLink pool={pool} />
+                <PoolLink pool={pool} note={pool.status === "finished" ? "Temporada terminada · falta pagar" : undefined} />
               </li>
             ))}
           </ul>
@@ -143,7 +146,7 @@ export default async function HomePage() {
   );
 }
 
-function PoolLink({ pool }: { pool: { id: string; name: string; sport: Sport } }) {
+function PoolLink({ pool, note }: { pool: { id: string; name: string; sport: Sport }; note?: string }) {
   return (
     <Link
       href={`/quinielas/${pool.id}`}
@@ -153,6 +156,7 @@ function PoolLink({ pool }: { pool: { id: string; name: string; sport: Sport } }
       <span className="min-w-0">
         <span className="block text-xs font-semibold tracking-wider text-sport uppercase">{SPORT_LABEL[pool.sport]}</span>
         <span className="block truncate font-display text-xl font-bold uppercase">{pool.name}</span>
+        {note && <span className="block text-xs font-semibold text-gold">{note}</span>}
       </span>
       <span aria-hidden="true" className="text-muted">→</span>
     </Link>
