@@ -63,7 +63,7 @@ export default async function HomePage() {
       {pools.length > 0 && (
         <Link
           href="/estadisticas"
-          className="mt-8 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent"
+          className="mt-8 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent active:scale-[0.98]"
         >
           <span>
             <span className="block font-medium">Mis estadísticas</span>
@@ -86,7 +86,7 @@ export default async function HomePage() {
                 <Link
                   href={`/quinielas/${pool.id}`}
                   data-sport={pool.sport}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-l-4 border-border border-l-sport bg-surface px-4 py-3 transition hover:border-accent hover:border-l-sport"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-l-4 border-border border-l-sport bg-surface px-4 py-3 transition hover:border-accent active:scale-[0.98] hover:border-l-sport"
                 >
                   <span className="min-w-0">
                     <span className="block text-xs font-semibold tracking-wider text-sport uppercase">

@@ -161,7 +161,7 @@ function PoolCard({ pool, playerId, mine }: { pool: PoolStats; playerId: string;
     <Link
       href={`/estadisticas/${playerId}/${pool.id}`}
       data-sport={pool.sport}
-      className="block rounded-xl border border-l-4 border-border border-l-sport bg-surface px-4 py-3 transition hover:border-accent hover:border-l-sport"
+      className="block rounded-xl border border-l-4 border-border border-l-sport bg-surface px-4 py-3 transition hover:border-accent active:scale-[0.98] hover:border-l-sport"
     >
       <span className="flex items-baseline justify-between gap-3">
         <span className="min-w-0 truncate text-xs font-semibold tracking-wider text-sport uppercase">{pool.name}</span>

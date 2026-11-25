@@ -38,7 +38,7 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
         {manager && (
           <Link
             href={`/quinielas/${pool.id}/admin`}
-            className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition hover:border-accent"
+            className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition hover:border-accent active:scale-95"
           >
             Administrar
           </Link>
@@ -80,7 +80,7 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
 
       <Link
         href={`/quinielas/${pool.id}/corte`}
-        className="mt-3 flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent"
+        className="mt-3 flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent active:scale-[0.98]"
       >
         <span>
           <span className="block font-medium">Corte del mes</span>
@@ -152,7 +152,7 @@ export default async function PoolPage({ params }: PageProps<"/quinielas/[poolId
               <li key={round.id}>
                 <Link
                   href={`/quinielas/${pool.id}/jornadas/${round.id}`}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent active:scale-[0.98]"
                 >
                   <span className="min-w-0">
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">

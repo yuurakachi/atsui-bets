@@ -19,7 +19,7 @@ export function UpcomingRoundCard({ round, poolName }: { round: UpcomingRound; p
     <Link
       href={`/quinielas/${round.poolId}/jornadas/${round.id}`}
       data-sport={round.sport}
-      className={`block rounded-xl border border-l-4 border-l-sport bg-surface px-4 py-3 transition hover:border-accent hover:border-l-sport ${
+      className={`block rounded-xl border border-l-4 border-l-sport bg-surface px-4 py-3 transition hover:border-accent active:scale-[0.98] hover:border-l-sport ${
         complete || closed ? "border-border" : "border-accent/50 shadow-sm"
       }`}
     >
