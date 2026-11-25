@@ -148,7 +148,8 @@ are paid out, and the rest is kept for the pool's jackpot.
 - Each pool has its own settlement periods. Each period has a **cutoff**: Saturday 00:00 of the meeting weekend
   (default: the first Saturday of the month; admins can change it).
 - A round belongs to a period only if it has **completely finished before the cutoff**
-  (before Saturday). Otherwise it moves to the next period. For example, a Liga MX
+  (before Saturday). Otherwise it moves to the next period. It also moves to the next
+  one when its period was already settled, for instance when the family met early. For example, a Liga MX
   matchday that ends on Sunday of the meeting weekend is settled the following month.
 - A round's finish time is the estimated end of its last event: kickoff + 2 h for
   Liga MX, kickoff + 3.5 h for NFL, start + 2 h for F1. Admins can move a round to

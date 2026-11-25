@@ -4,6 +4,7 @@ import {
   buildStatement,
   defaultCutoff,
   nextDefaultCutoff,
+  openDefaultCutoff,
   roundFinishedAt,
 } from "./settlement";
 
@@ -28,6 +29,24 @@ describe("nextDefaultCutoff", () => {
 
   it("rolls over the year", () => {
     expect(nextDefaultCutoff(new Date("2026-12-20T18:00:00Z")).toISOString()).toBe("2027-01-02T06:00:00.000Z");
+  });
+});
+
+describe("openDefaultCutoff", () => {
+  // NFL Week 11 of 2026: Monday night game, finished Mon Nov 23, 22:45 CDMX.
+  const finishedAt = new Date("2026-11-24T04:45:00Z");
+
+  it("is the next default meeting when it hasn't been settled", () => {
+    expect(openDefaultCutoff(finishedAt, [defaultCutoff(2026, 11)]).toISOString()).toBe("2026-12-05T06:00:00.000Z");
+  });
+
+  it("skips a meeting already settled, even if it was closed before its cutoff", () => {
+    expect(openDefaultCutoff(finishedAt, [defaultCutoff(2026, 12)]).toISOString()).toBe("2027-01-02T06:00:00.000Z");
+  });
+
+  it("skips several settled meetings in a row", () => {
+    const settled = [defaultCutoff(2026, 12), defaultCutoff(2027, 1)];
+    expect(openDefaultCutoff(finishedAt, settled).toISOString()).toBe("2027-02-06T06:00:00.000Z");
   });
 });
 

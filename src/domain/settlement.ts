@@ -31,6 +31,18 @@ export function nextDefaultCutoff(instant: Date): Date {
   return month === 12 ? defaultCutoff(year + 1, 1) : defaultCutoff(year, month + 1);
 }
 
+/**
+ * The default meeting for a round finished at `finishedAt` that hasn't been settled yet.
+ * A meeting can be closed before its cutoff (the family met early), and then the round
+ * goes to the next one.
+ */
+export function openDefaultCutoff(finishedAt: Date, settledCutoffs: readonly Date[]): Date {
+  const settled = new Set(settledCutoffs.map((d) => d.getTime()));
+  let cutoff = nextDefaultCutoff(finishedAt);
+  while (settled.has(cutoff.getTime())) cutoff = nextDefaultCutoff(cutoff);
+  return cutoff;
+}
+
 export interface SettlementPeriod {
   id: string;
   cutoffAt: Date;

@@ -3,8 +3,8 @@ import { cache } from "react";
 import {
   F1_PICK_POSITIONS,
   f1PicksShownFrom,
-  nextDefaultCutoff,
   matchLock,
+  openDefaultCutoff,
   orderByPosition,
   perfectRoundBonus,
   perfectRoundPoints,
@@ -515,9 +515,15 @@ async function settlementPeriodFor(supabase: Supabase, poolId: string, finishedA
     .maybeSingle();
   if (existing) return existing.id;
 
+  const { data: settled } = await supabase
+    .from("settlement_periods")
+    .select("cutoff_at")
+    .eq("pool_id", poolId)
+    .not("settled_at", "is", null);
+  const cutoff = openDefaultCutoff(finishedAt, (settled ?? []).map((p) => new Date(p.cutoff_at)));
   const { data: created, error } = await supabase
     .from("settlement_periods")
-    .insert({ pool_id: poolId, cutoff_at: nextDefaultCutoff(finishedAt).toISOString() })
+    .insert({ pool_id: poolId, cutoff_at: cutoff.toISOString() })
     .select("id")
     .single();
   if (error) throw new Error(error.message);
