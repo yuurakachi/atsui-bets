@@ -191,7 +191,7 @@ export function PoolDetail({
                     ...rounds.map((r, i) => ({ label: labels[i], cents: r.netCents, won: r.won })),
                     // What changes hands when the season closes: the jackpot prize and a playoff buy-in.
                     ...(pool.closing
-                      ? [{ label: "final", cents: pool.netCents, pending: !pool.closing.paid, won: pool.closing.prizeCents > 0 }]
+                      ? [{ label: "fin", cents: pool.netCents, pending: !pool.closing.paid, won: pool.closing.prizeCents > 0, closing: true }]
                       : []),
                   ]}
                 />
@@ -218,6 +218,7 @@ export function PoolDetail({
 /** How the season's money adds up: what a round costs and where the jackpot stands. */
 function netNote(pool: PoolStats, noun: string, mine: boolean): string {
   const jackpot = pool.playoffs ? "la bolsa" : "el acumulado";
+  const ofJackpot = pool.playoffs ? "de la bolsa" : "del acumulado";
   const cost = pool.playoffs
     ? `La cuota de ${formatMoneyCompact(pool.closing?.buyInCents ?? 0)} se paga al final, con los premios.`
     : `Cada ${noun} cuesta ${formatMoneyCompact(pool.rounds[0].feeCents)}.`;
@@ -227,9 +228,9 @@ function netNote(pool: PoolStats, noun: string, mine: boolean): string {
       : "";
     return `${cost} ${jackpot[0].toUpperCase()}${jackpot.slice(1)} aún no cuenta${today}.`;
   }
-  if (!pool.jackpotPrize || !pool.closing?.prizeCents) return `${cost} De ${jackpot} no ${mine ? "te" : "le"} tocó nada.`;
+  if (!pool.jackpotPrize || !pool.closing?.prizeCents) return `${cost} ${ofJackpot[0].toUpperCase()}${ofJackpot.slice(1)} no ${mine ? "te" : "le"} tocó nada.`;
   const when = pool.closing.cutoffAt && !pool.closing.paid ? `, se paga en la reunión del ${meetingDate.format(pool.closing.cutoffAt)}` : "";
-  return `${cost} Incluye ${JACKPOT_LABEL[pool.jackpotPrize.kind]} de ${jackpot}: ${formatMoneyCompact(pool.closing.prizeCents)}${when}.`;
+  return `${cost} Incluye ${JACKPOT_LABEL[pool.jackpotPrize.kind]} ${ofJackpot}: ${formatMoneyCompact(pool.closing.prizeCents)}${when}.`;
 }
 
 function Stat({ label, value, note, wide }: { label: string; value: string; note: string; wide?: boolean }) {

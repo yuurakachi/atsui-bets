@@ -4,12 +4,16 @@ import { formatNet } from "@/lib/format";
 /** Charts are drawn 320 units wide and scale with the card, so they fit a 375px phone. */
 const W = 320;
 
-/** The x-axis labels that fit a slot: all of them, each round's number, or every fifth number. */
-function axisLabels(labels: readonly string[], slot: number): string[] {
-  const widest = Math.max(...labels.map((l) => l.length));
+/**
+ * The x-axis labels that fit a slot: all of them, each round's number, or every fifth
+ * number. `fixed` labels (the season's close) are always shown as they are and don't
+ * count towards the width.
+ */
+function axisLabels(labels: readonly string[], slot: number, fixed: (i: number) => boolean = () => false): string[] {
+  const widest = Math.max(...labels.filter((_, i) => !fixed(i)).map((l) => l.length));
   if (slot >= widest * 6.5 + 3) return [...labels];
   const every = slot >= 15 ? 1 : 5;
-  return labels.map((_, i) => (i === 0 || (i + 1) % every === 0 ? String(i + 1) : ""));
+  return labels.map((label, i) => (fixed(i) ? label : i === 0 || (i + 1) % every === 0 ? String(i + 1) : ""));
 }
 
 export interface PointsBar {
@@ -134,6 +138,8 @@ export interface NetPoint {
   pending?: boolean;
   /** A round where the player took the weekly prize. */
   won?: boolean;
+  /** What the season's close pays, after the last round or meeting. */
+  closing?: boolean;
 }
 
 const wholePesos = (cents: Cents) => formatNet(Math.round(cents / 100) * 100);
@@ -153,7 +159,7 @@ export function NetChart({ points, by, label }: { points: readonly NetPoint[]; b
   const step = (right - left) / points.length;
   const x = (i: number) => left + i * step;
   const y = (cents: Cents) => top + ((max - cents) * (bottom - top)) / (max - min || 1);
-  const labels = axisLabels(points.map((p) => p.label), step);
+  const labels = axisLabels(points.map((p) => p.label), step, (i) => points[i].closing === true);
 
   // Amounts are printed at the last point and, when there's room, at the highest and lowest.
   const n = points.length;

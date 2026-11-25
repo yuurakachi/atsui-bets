@@ -67,9 +67,10 @@ export function StatsSummary({
                       .map((m) => `${m.cutoffAt ? meetingDate.format(m.cutoffAt) : "al final"} ${formatNet(m.cumulativeCents)}`)
                       .join(", ")}.`}
                     points={meetings.map((m) => ({
-                      label: m.cutoffAt ? meetingMonth.format(m.cutoffAt).replace(".", "") : "final",
+                      label: m.cutoffAt ? meetingMonth.format(m.cutoffAt).replace(".", "") : "fin",
                       cents: m.cumulativeCents,
                       pending: !m.settled,
+                      closing: m.cutoffAt === null,
                     }))}
                   />
                 </div>
