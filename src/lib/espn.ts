@@ -57,7 +57,11 @@ interface EspnEvent {
 
 const VOID_STATUSES = new Set(["STATUS_POSTPONED", "STATUS_CANCELED", "STATUS_ABANDONED", "STATUS_FORFEIT"]);
 
-function resultOf(event: EspnEvent): MatchResult | null {
+/**
+ * The result of a finished match: whoever ESPN says won it, which covers extra time and
+ * penalties (docs/RULES.md §2); otherwise the score, where a tie is a draw.
+ */
+export function resultOf(event: EspnEvent): MatchResult | null {
   const competition = event.competitions[0];
   const status = competition.status.type;
   if (VOID_STATUSES.has(status.name)) return "void";
@@ -65,6 +69,8 @@ function resultOf(event: EspnEvent): MatchResult | null {
 
   const home = competition.competitors.find((c) => c.homeAway === "home");
   const away = competition.competitors.find((c) => c.homeAway === "away");
+  if (home?.winner) return "home";
+  if (away?.winner) return "away";
   const diff = Number(home?.score) - Number(away?.score);
   if (Number.isNaN(diff)) return null;
   return diff > 0 ? "home" : diff < 0 ? "away" : "draw";
