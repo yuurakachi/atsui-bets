@@ -1,14 +1,15 @@
 import Link from "next/link";
-import type { Tally } from "@/domain";
+import { TIME_ZONE, type Tally } from "@/domain";
 import { formatMoneyCompact, formatNet } from "@/lib/format";
 import type { PoolPickStats, PoolStats, StatsPlayer } from "@/lib/stats";
 import { NetChart, PointsChart, StandingChart } from "./charts";
-import { countRounds, pickerOptions, roundNoun, shortRoundLabel, SPORT_LABEL } from "./labels";
+import { countRounds, JACKPOT_LABEL, pickerOptions, roundNoun, shortRoundLabel, SPORT_LABEL } from "./labels";
 import { PlayerPicker } from "./player-picker";
 import { Legend, toneOf } from "./summary";
 
 const oneDecimal = new Intl.NumberFormat("es-MX", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const listOf = new Intl.ListFormat("es-MX", { type: "conjunction" });
+const meetingDate = new Intl.DateTimeFormat("es-MX", { timeZone: TIME_ZONE, day: "numeric", month: "short" });
 
 /** One player's season in one pool: round by round, standing, money and pick accuracy. */
 export function PoolDetail({
@@ -44,6 +45,11 @@ export function PoolDetail({
       </Link>
       <p className="mt-2 text-xs font-semibold tracking-wider text-sport uppercase">{SPORT_LABEL[pool.sport]}</p>
       <h1 className="text-2xl font-bold">{pool.name}</h1>
+      {pool.finished && (
+        <span className="mt-1 inline-block rounded-full border border-gold bg-gold/15 px-2 py-0.5 text-xs font-semibold text-gold">
+          Temporada terminada
+        </span>
+      )}
       <p className="mt-1 text-muted">
         {rounds.length > 0 && (
           <>
@@ -178,8 +184,16 @@ export function PoolDetail({
               <div className="-mx-2 mt-3">
                 <NetChart
                   by="round"
-                  label={`Neto acumulado después de cada ${noun}: ${rounds.map((r) => `${r.name} ${formatNet(r.netCents)}`).join(", ")}.`}
-                  points={rounds.map((r, i) => ({ label: labels[i], cents: r.netCents, won: r.won }))}
+                  label={`Neto acumulado después de cada ${noun}: ${rounds.map((r) => `${r.name} ${formatNet(r.netCents)}`).join(", ")}${
+                    pool.closing ? `, al cerrar la temporada ${formatNet(pool.netCents)}` : ""
+                  }.`}
+                  points={[
+                    ...rounds.map((r, i) => ({ label: labels[i], cents: r.netCents, won: r.won })),
+                    // What changes hands when the season closes: the jackpot prize and a playoff buy-in.
+                    ...(pool.closing
+                      ? [{ label: "final", cents: pool.netCents, pending: !pool.closing.paid, won: pool.closing.prizeCents > 0 }]
+                      : []),
+                  ]}
                 />
               </div>
               <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
@@ -188,12 +202,7 @@ export function PoolDetail({
                 </Legend>
               </ul>
             </div>
-            <p className="mt-2 text-xs text-muted">
-              Cada {noun} cuesta {formatMoneyCompact(rounds[0].feeCents)}. El acumulado aún no cuenta
-              {pool.jackpotPrize
-                ? `; si la temporada terminara hoy, ${mine ? "te llevarías" : "se llevaría"} ${formatMoneyCompact(pool.jackpotPrize.cents)}.`
-                : "."}
-            </p>
+            <p className="mt-2 text-xs text-muted">{netNote(pool, noun, mine)}</p>
           </section>
 
           <section className="mt-8">
@@ -204,6 +213,23 @@ export function PoolDetail({
       )}
     </main>
   );
+}
+
+/** How the season's money adds up: what a round costs and where the jackpot stands. */
+function netNote(pool: PoolStats, noun: string, mine: boolean): string {
+  const jackpot = pool.playoffs ? "la bolsa" : "el acumulado";
+  const cost = pool.playoffs
+    ? `La cuota de ${formatMoneyCompact(pool.closing?.buyInCents ?? 0)} se paga al final, con los premios.`
+    : `Cada ${noun} cuesta ${formatMoneyCompact(pool.rounds[0].feeCents)}.`;
+  if (!pool.finished) {
+    const today = pool.jackpotPrize
+      ? `; si la temporada terminara hoy, ${mine ? "te llevarías" : "se llevaría"} ${formatMoneyCompact(pool.jackpotPrize.cents)}`
+      : "";
+    return `${cost} ${jackpot[0].toUpperCase()}${jackpot.slice(1)} aún no cuenta${today}.`;
+  }
+  if (!pool.jackpotPrize || !pool.closing?.prizeCents) return `${cost} De ${jackpot} no ${mine ? "te" : "le"} tocó nada.`;
+  const when = pool.closing.cutoffAt && !pool.closing.paid ? `, se paga en la reunión del ${meetingDate.format(pool.closing.cutoffAt)}` : "";
+  return `${cost} Incluye ${JACKPOT_LABEL[pool.jackpotPrize.kind]} de ${jackpot}: ${formatMoneyCompact(pool.closing.prizeCents)}${when}.`;
 }
 
 function Stat({ label, value, note, wide }: { label: string; value: string; note: string; wide?: boolean }) {

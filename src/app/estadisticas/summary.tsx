@@ -31,6 +31,10 @@ export function StatsSummary({
   const netCents = wonCents - paidCents;
   const meetings = netByMeeting(pools.flatMap((p) => p.money));
   const dueCents = pools.reduce((acc, p) => acc + (p.nextMeeting?.netCents ?? 0), 0);
+  // A finished season moves to its own list once it's paid up, as on the home screen.
+  const open = pools.filter((p) => !p.closed);
+  const closed = pools.filter((p) => p.closed);
+  const closings = pools.filter((p) => p.finished && p.closing && !p.closing.paid);
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
@@ -60,10 +64,10 @@ export function StatsSummary({
                   <NetChart
                     by="meeting"
                     label={`Neto acumulado después de cada reunión: ${meetings
-                      .map((m) => `${m.cutoffAt ? meetingDate.format(m.cutoffAt) : "sin corte"} ${formatNet(m.cumulativeCents)}`)
+                      .map((m) => `${m.cutoffAt ? meetingDate.format(m.cutoffAt) : "al final"} ${formatNet(m.cumulativeCents)}`)
                       .join(", ")}.`}
                     points={meetings.map((m) => ({
-                      label: m.cutoffAt ? meetingMonth.format(m.cutoffAt).replace(".", "") : "—",
+                      label: m.cutoffAt ? meetingMonth.format(m.cutoffAt).replace(".", "") : "final",
                       cents: m.cumulativeCents,
                       pending: !m.settled,
                     }))}
@@ -74,14 +78,17 @@ export function StatsSummary({
                   <Legend dot="bg-negative">{mine ? "Pagaste" : "Pagó"}</Legend>
                   {meetings.some((m) => !m.settled) && <Legend dot="border-2 border-muted">Pendiente</Legend>}
                 </ul>
-                <p className="mt-2 text-xs text-muted">Un punto por reunión mensual. El acumulado aún no cuenta.</p>
+                <p className="mt-2 text-xs text-muted">
+                  Un punto por reunión mensual. El acumulado cuenta cuando termina la temporada, en la
+                  reunión que la paga.
+                </p>
               </>
             )}
           </section>
 
           <section className="mt-8">
             <h2>Próxima reunión</h2>
-            {pools.every((p) => !p.nextMeeting) ? (
+            {open.every((p) => !p.nextMeeting) ? (
               <p className="mt-3 rounded-xl border border-dashed border-border px-4 py-6 text-center text-muted">
                 No hay jornadas pendientes de cobrar.
               </p>
@@ -89,7 +96,7 @@ export function StatsSummary({
               <>
                 <div className="mt-3 overflow-hidden rounded-xl border border-border bg-surface">
                   <ul>
-                    {pools.map((pool) => (
+                    {open.map((pool) => (
                       <li key={pool.id} className="border-b border-border">
                         <Link
                           href={`/quinielas/${pool.id}/corte`}
@@ -128,17 +135,54 @@ export function StatsSummary({
                 <p className="mt-2 text-xs text-muted">Cada quiniela se paga por separado con su subadmin.</p>
               </>
             )}
+            {closings.length > 0 && (
+              <>
+                <p className="mt-4 text-xs font-semibold tracking-wider text-muted uppercase">Cierre de temporada</p>
+                <ul className="mt-2 overflow-hidden rounded-xl border border-border bg-surface">
+                  {closings.map((pool) => (
+                    <li key={pool.id} className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-0">
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">{pool.name}</span>
+                        <span className="block text-sm text-muted">{closingNote(pool)}</span>
+                      </span>
+                      <span className={`shrink-0 font-display text-lg font-semibold tabular-nums ${toneOf(pool.closing!.cents)}`}>
+                        {formatNet(pool.closing!.cents)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-muted">Aparte de las jornadas: no está en el corte del mes.</p>
+              </>
+            )}
           </section>
 
           <section className="mt-8">
             <h2>{mine ? "Tus quinielas" : "Sus quinielas"}</h2>
-            <ul className="mt-3 space-y-2">
-              {pools.map((pool) => (
-                <li key={pool.id}>
-                  <PoolCard pool={pool} playerId={player.id} mine={mine} />
-                </li>
-              ))}
-            </ul>
+            {open.length === 0 ? (
+              <p className="mt-3 rounded-xl border border-dashed border-border px-4 py-6 text-center text-muted">
+                {mine ? "No tienes quinielas activas." : `${player.name} no tiene quinielas activas.`}
+              </p>
+            ) : (
+              <ul className="mt-3 space-y-2">
+                {open.map((pool) => (
+                  <li key={pool.id}>
+                    <PoolCard pool={pool} playerId={player.id} mine={mine} />
+                  </li>
+                ))}
+              </ul>
+            )}
+            {closed.length > 0 && (
+              <details className="mt-4 rounded-xl border border-border bg-surface px-4 py-3">
+                <summary className="cursor-pointer text-sm font-medium">Temporadas terminadas ({closed.length})</summary>
+                <ul className="mt-3 space-y-2">
+                  {closed.map((pool) => (
+                    <li key={pool.id}>
+                      <PoolCard pool={pool} playerId={player.id} mine={mine} />
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
           </section>
         </>
       )}
@@ -169,6 +213,9 @@ function PoolCard({ pool, playerId, mine }: { pool: PoolStats; playerId: string;
           {countRounds(pool.sport, pool.rounds.length)} <span aria-hidden="true">→</span>
         </span>
       </span>
+      {pool.finished && !pool.closed && (
+        <span className="block text-xs font-semibold text-gold">Temporada terminada · falta pagar</span>
+      )}
 
       {pool.rounds.length === 0 ? (
         <span className="mt-2 block text-sm text-muted">Aún no hay {roundNoun(pool.sport, 2)} terminadas.</span>
@@ -203,16 +250,33 @@ function PoolCard({ pool, playerId, mine }: { pool: PoolStats; playerId: string;
             </span>
             {pool.jackpotPrize ? (
               <span className="rounded-full border border-gold/60 px-2 py-0.5 text-xs font-semibold text-gold">
-                {JACKPOT_LABEL[pool.jackpotPrize.kind]} · hoy {formatMoneyCompact(pool.jackpotPrize.cents)}
+                {JACKPOT_LABEL[pool.jackpotPrize.kind]} · {pool.finished ? "" : "hoy "}
+                {formatMoneyCompact(pool.jackpotPrize.cents)}
               </span>
             ) : (
-              <span className="text-muted">Acumulado: hoy no {mine ? "te" : "le"} toca</span>
+              <span className="text-muted">
+                {pool.playoffs ? "Bolsa" : "Acumulado"}:{" "}
+                {pool.finished ? `no ${mine ? "te" : "le"} tocó` : `hoy no ${mine ? "te" : "le"} toca`}
+              </span>
             )}
           </span>
         </>
       )}
     </Link>
   );
+}
+
+/** "1° del acumulado, se paga el 5 dic", "Bolsa $840 − cuota $300 · al final". */
+function closingNote(pool: PoolStats): string {
+  const closing = pool.closing!;
+  const prize = pool.jackpotPrize && closing.prizeCents > 0 ? `${JACKPOT_LABEL[pool.jackpotPrize.kind]} ${pool.playoffs ? "de la bolsa" : "del acumulado"}` : null;
+  const what = [
+    prize && (closing.buyInCents > 0 ? `${prize} ${formatMoneyCompact(closing.prizeCents)}` : prize),
+    closing.buyInCents > 0 && `cuota ${formatMoneyCompact(closing.buyInCents)}`,
+  ]
+    .filter(Boolean)
+    .join(" − ");
+  return closing.cutoffAt ? `${what} · reunión del ${meetingDate.format(closing.cutoffAt)}` : what;
 }
 
 const GAP_LABEL = { winner: "1°", lucky_seven: "7°", bobby: "Penúlt." } as const;
