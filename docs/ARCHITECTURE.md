@@ -205,6 +205,10 @@ with `npx supabase db query --linked -f <file>`. Real family data lives in `data
    An NFL week is too wide for a phone, so its picks table scrolls sideways between
    the player's name and their points, which stay in place; it opens on the first
    game still to be decided.
+   In Liga MX and NFL, once a match has locked, the player's picks and everyone's are
+   two tabs; the page opens on "Mis pics" while the player still has an open match
+   without a pick, and on everyone's picks otherwise. F1 needs no tabs: its picks all
+   lock at once, and after that only everyone's are shown.
 4. **Season** — season standings and current jackpot.
 5. **Settlement** (per pool) — monthly settlement: owes / won / net per person.
 6. **Admin** — enrollments, payments, on-behalf picks, results, data import, audit log,

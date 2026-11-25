@@ -8,6 +8,7 @@ import { F1Round } from "./f1-round";
 import { PickForm } from "./pick-form";
 import { PicksGrid } from "./picks-grid";
 import { RoundResults } from "./round-results";
+import { RoundTabs } from "./round-tabs";
 
 const lockFormat = new Intl.DateTimeFormat("es-MX", {
   timeZone: "America/Mexico_City",
@@ -47,6 +48,39 @@ export default async function RoundPage({ params }: PageProps<"/quinielas/[poolI
     const firstLock = new Date(Math.min(...detail.events.map((e) => e.lockAt.getTime())));
     const now = new Date();
     const sameLock = detail.events.every((e) => e.lockAt.getTime() === firstLock.getTime());
+    // Once a match locks there are everyone's picks to see too: open on "Mis pics" while
+    // this player (or whoever let them pick for them) still has an open match without a pick.
+    const anyLocked = firstLock <= now;
+    const mine = pickFor.filter((p) => p.id === player.id || delegators.includes(p.id));
+    const stillToPick = detail.events.some(
+      (e) => e.result !== "void" && e.lockAt > now && mine.some((p) => !picks[p.id]?.[e.id]),
+    );
+    // The keys only quiet React's dev warning for elements handed to a client component.
+    const form =
+      enrolled || pickFor.length > 0 ? (
+        <PickForm
+          key="form"
+          poolId={pool.id}
+          roundId={detail.id}
+          nfl={detail.sport === "nfl"}
+          now={now.getTime()}
+          currentPlayerId={player.id}
+          players={manager || pickFor.length > 1 || !enrolled ? pickFor : undefined}
+          afterLock={manager}
+          picks={picks}
+          events={detail.events.filter((e) => e.result !== "void").map((e) => ({
+            id: e.id,
+            home: e.home,
+            away: e.away,
+            startsAt: e.startsAt.toISOString(),
+            lockAt: e.lockAt.toISOString(),
+          }))}
+        />
+      ) : (
+        <p key="form" className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-muted">
+          No estás inscrito en esta quiniela.
+        </p>
+      );
 
     return (
       <main data-sport={pool.sport} className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
@@ -71,33 +105,15 @@ export default async function RoundPage({ params }: PageProps<"/quinielas/[poolI
           </p>
         )}
 
-        <div className="mt-6">
-          {enrolled || pickFor.length > 0 ? (
-            <PickForm
-              poolId={pool.id}
-              roundId={detail.id}
-              nfl={detail.sport === "nfl"}
-              now={now.getTime()}
-              currentPlayerId={player.id}
-              players={manager || pickFor.length > 1 || !enrolled ? pickFor : undefined}
-              afterLock={manager}
-              picks={picks}
-              events={detail.events.filter((e) => e.result !== "void").map((e) => ({
-                id: e.id,
-                home: e.home,
-                away: e.away,
-                startsAt: e.startsAt.toISOString(),
-                lockAt: e.lockAt.toISOString(),
-              }))}
-            />
-          ) : (
-            <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-muted">
-              No estás inscrito en esta quiniela.
-            </p>
-          )}
-        </div>
-
-        <PicksGrid round={detail} currentPlayerId={player.id} />
+        {anyLocked ? (
+          <RoundTabs
+            initial={stillToPick ? "mine" : "everyone"}
+            mine={form}
+            everyone={<PicksGrid key="grid" round={detail} currentPlayerId={player.id} />}
+          />
+        ) : (
+          <div className="mt-6">{form}</div>
+        )}
       </main>
     );
   }
