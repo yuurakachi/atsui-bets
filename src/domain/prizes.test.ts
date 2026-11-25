@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { distributePrizes, perfectRoundBonus, settleRound } from "./prizes";
+import { distributePrizes, perfectRoundBonus, seasonJackpot, settleRound } from "./prizes";
 import { rankEntries, type StandingEntry } from "./standings";
 
 /** p01 … pNN with the given points, in order. */
@@ -94,5 +94,31 @@ describe("distributePrizes for the season jackpot", () => {
     const result = distributePrizes(1000_00, entries([3, 2, 1]));
     expect(result.awards.map((a) => a.kind)).toEqual(["winner", "bobby"]);
     expect(result.undistributedCents).toBe(200_00);
+  });
+});
+
+describe("seasonJackpot", () => {
+  it("adds the opening balance, buy-ins and each round's share, minus perfect-round bonuses, and splits it", () => {
+    const players = Array.from({ length: 8 }, (_, i) => `p${i + 1}`);
+    const { balanceCents, distribution } = seasonJackpot({
+      openingCents: 500_00,
+      buyInCents: 300_00,
+      playerIds: players,
+      rounds: [
+        {
+          jackpotCents: 200_00,
+          // p1 had a perfect round; everyone else scores less the further down the list.
+          results: players.map((id, i) => ({ playerId: id, points: 9 - i, bonusCents: i === 0 ? 1000_00 : 0 })),
+        },
+        { jackpotCents: 1300_00, results: players.map((id, i) => ({ playerId: id, points: 9 - i, bonusCents: 0 })) },
+      ],
+    });
+    // 500 + 8 × 300 + 200 + 1,300 − 1,000
+    expect(balanceCents).toBe(3400_00);
+    expect(distribution.awards.map((a) => [a.kind, a.profileIds, a.perPersonCents])).toEqual([
+      ["winner", ["p1"], 2380_00],
+      ["lucky_seven", ["p7"], 680_00],
+      ["bobby", ["p7"], 340_00],
+    ]);
   });
 });

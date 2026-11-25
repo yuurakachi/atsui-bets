@@ -1,4 +1,4 @@
-import { TIME_ZONE, type Cents, type Sport } from "@/domain";
+import { TIME_ZONE, type Cents, type PrizeKind, type Sport } from "@/domain";
 import { formatMoney } from "./format";
 import { roundTitle } from "./reminders";
 
@@ -72,4 +72,17 @@ export function winnerMessage(input: {
     );
   }
   return { title: `🏆 ${input.poolName} · ${roundTitle(input.roundName)}`, body: lines.join(" ") };
+}
+
+const PRIZE_LABEL: Record<PrizeKind, string> = { winner: "1°", lucky_seven: "Lucky 7", bobby: "Bobby" };
+
+/** A season (or liguilla) is over: who takes the jackpot. */
+export function seasonMessage(input: {
+  poolName: string;
+  awards: { kind: PrizeKind; names: string[]; cents: Cents }[];
+}): PushMessage {
+  const lines = input.awards.map(
+    (a) => `${PRIZE_LABEL[a.kind]}: ${list(a.names)}, ${formatMoney(a.cents)}${a.names.length > 1 ? " c/u" : ""}.`,
+  );
+  return { title: `🏆 ${input.poolName} terminó`, body: lines.join(" ") };
 }

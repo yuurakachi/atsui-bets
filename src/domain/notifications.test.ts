@@ -174,5 +174,8 @@ describe("poolNotifies", () => {
     expect(poolNotifies({ sport: "f1", status: "active" })).toBe(true);
     expect(poolNotifies({ sport: "nfl", status: "active" })).toBe(false);
     expect(poolNotifies({ sport: "liga_mx", status: "upcoming" })).toBe(false);
+    // A finished season still announces its last round and its jackpot winners.
+    expect(poolNotifies({ sport: "liga_mx", status: "finished" })).toBe(true);
+    expect(poolNotifies({ sport: "nfl", status: "finished" })).toBe(false);
   });
 });

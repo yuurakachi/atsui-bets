@@ -12,11 +12,12 @@ export const CLOSING_NOTICE_MINUTES = 10;
 const MUTED_SPORTS: readonly Sport[] = ["nfl"];
 
 /**
- * Whether a pool's notices are sent. Notices of other pools are still marked as handled,
- * so turning a pool on later doesn't send its old ones.
+ * Whether a pool's notices are sent: not while it's being set up (only the admin sees it),
+ * but still once it's finished, for its last round and its jackpot winners. Notices of
+ * other pools are still marked as handled, so turning a pool on later doesn't send old ones.
  */
 export function poolNotifies(pool: { sport: Sport; status: string }): boolean {
-  return pool.status === "active" && !MUTED_SPORTS.includes(pool.sport);
+  return pool.status !== "upcoming" && !MUTED_SPORTS.includes(pool.sport);
 }
 
 /** Rounds more than this far after a pool's next deadline aren't shown yet (F1 loads the whole season). */

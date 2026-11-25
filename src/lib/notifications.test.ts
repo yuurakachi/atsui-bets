@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closingMessage, openedMessage, winnerMessage } from "./notifications";
+import { closingMessage, openedMessage, seasonMessage, winnerMessage } from "./notifications";
 
 describe("openedMessage", () => {
   it("announces a Liga MX matchday with its first lock", () => {
@@ -87,5 +87,29 @@ describe("winnerMessage", () => {
         bonusEachCents: 1000_00,
       }).body,
     ).toBe("Empate de Ana y Beto con 9 pts: $562.50 c/u. 🎯 Jornada perfecta de Ana y Beto: $1,000.00 c/u del acumulado.");
+  });
+});
+
+describe("seasonMessage", () => {
+  it("names the 1st, Lucky 7 and Bobby with what each takes", () => {
+    expect(
+      seasonMessage({
+        poolName: "Liga MX Apertura 2026",
+        awards: [
+          { kind: "winner", names: ["Ana"], cents: 7000_00 },
+          { kind: "lucky_seven", names: ["Beto"], cents: 2000_00 },
+          { kind: "bobby", names: ["Caro"], cents: 1000_00 },
+        ],
+      }),
+    ).toEqual({
+      title: "🏆 Liga MX Apertura 2026 terminó",
+      body: "1°: Ana, $7,000.00. Lucky 7: Beto, $2,000.00. Bobby: Caro, $1,000.00.",
+    });
+  });
+
+  it("splits a tied prize", () => {
+    expect(
+      seasonMessage({ poolName: "Liguilla", awards: [{ kind: "winner", names: ["Ana", "Beto"], cents: 1500_00 }] }).body,
+    ).toBe("1°: Ana y Beto, $1,500.00 c/u.");
   });
 });

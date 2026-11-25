@@ -1,7 +1,7 @@
 import "server-only";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { distributePrizes, rankEntries, type Cents, type PrizeKind, type Sport } from "@/domain";
+import { rankEntries, seasonJackpot, type Cents, type PrizeKind, type Sport } from "@/domain";
 import { playerName } from "./format";
 import { createClient } from "./supabase/server";
 
@@ -127,17 +127,18 @@ export const getPoolOverview = cache(async (poolId: string): Promise<PoolOvervie
     total.wonCents += r.prizeCents + r.bonusCents;
   }
 
-  const bonusesPaid = results.reduce((acc, r) => acc + r.bonusCents, 0);
-  // A playoff pool's buy-ins all go to the jackpot.
-  const jackpotBalanceCents =
-    pool.jackpot_opening_cents +
-    pool.buy_in_cents * players.size +
-    rounds.reduce((acc, r) => acc + r.jackpotCents, 0) -
-    bonusesPaid;
-
-  const entries = [...totals].map(([profileId, t]) => ({ profileId, points: t.points }));
+  // A playoff pool's buy-ins all go to the jackpot. The season-end notification uses the same split.
+  const {
+    balanceCents: jackpotBalanceCents,
+    entries,
+    distribution: { awards },
+  } = seasonJackpot({
+    openingCents: pool.jackpot_opening_cents,
+    buyInCents: pool.buy_in_cents,
+    playerIds: [...players.keys()],
+    rounds,
+  });
   const jackpotPrizes = new Map<string, { kind: PrizeKind; cents: Cents }>();
-  const { awards } = distributePrizes(jackpotBalanceCents, entries);
   for (const award of awards) {
     for (const id of award.profileIds) {
       // When 7th and second-to-last coincide, the same person holds both prizes.

@@ -66,6 +66,40 @@ export function distributePrizes(totalCents: Cents, entries: readonly StandingEn
   return { awards, wonCents, undistributedCents: totalCents - distributed };
 }
 
+export interface SeasonJackpotInput {
+  openingCents: Cents;
+  /** A playoff pool's one-time buy-in per player; it all goes to the jackpot. */
+  buyInCents: Cents;
+  /** Enrolled players. */
+  playerIds: readonly ProfileId[];
+  /** Completed rounds. */
+  rounds: readonly {
+    jackpotCents: Cents;
+    results: readonly { playerId: ProfileId; points: number; bonusCents: Cents }[];
+  }[];
+}
+
+/**
+ * The season jackpot (§5) and how it splits with the current standings: the opening
+ * balance, buy-ins and every round's share, minus the perfect-round bonuses paid from it.
+ */
+export function seasonJackpot(input: SeasonJackpotInput): {
+  balanceCents: Cents;
+  entries: StandingEntry[];
+  distribution: Distribution;
+} {
+  const results = input.rounds.flatMap((r) => r.results);
+  const balanceCents =
+    input.openingCents +
+    input.buyInCents * input.playerIds.length +
+    input.rounds.reduce((acc, r) => acc + r.jackpotCents, 0) -
+    results.reduce((acc, r) => acc + r.bonusCents, 0);
+  const points = new Map(input.playerIds.map((id) => [id, 0]));
+  for (const r of results) if (points.has(r.playerId)) points.set(r.playerId, points.get(r.playerId)! + r.points);
+  const entries = [...points].map(([profileId, p]) => ({ profileId, points: p }));
+  return { balanceCents, entries, distribution: distributePrizes(balanceCents, entries) };
+}
+
 export interface RoundSettlement {
   potCents: Cents;
   /** 75 % of the pot. */
