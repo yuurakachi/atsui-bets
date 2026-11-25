@@ -35,6 +35,9 @@ export default async function HomePage() {
     .eq("player_id", player.id);
 
   const pools = (enrollments ?? []).map((e) => e.pool).filter((p) => p !== null);
+  // Finished seasons go in their own list, so the ones being played stay up front.
+  const active = pools.filter((p) => p.status !== "finished");
+  const finished = pools.filter((p) => p.status === "finished");
   const [upcoming, signups] = await Promise.all([
     getUpcomingRounds(pools.map((p) => p.id), player.id),
     getOpenSignups(player.id),
@@ -108,35 +111,50 @@ export default async function HomePage() {
 
       <section className="mt-8">
         <h2>Tus quinielas</h2>
-        {pools.length === 0 ? (
+        {active.length === 0 ? (
           <p className="mt-3 rounded-xl border border-dashed border-border px-4 py-6 text-center text-muted">
-            Aún no estás inscrito en ninguna quiniela.
+            {finished.length > 0 ? "No tienes quinielas activas." : "Aún no estás inscrito en ninguna quiniela."}
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
-            {pools.map((pool) => (
+            {active.map((pool) => (
               <li key={pool.id}>
-                <Link
-                  href={`/quinielas/${pool.id}`}
-                  data-sport={pool.sport}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-l-4 border-border border-l-sport bg-surface px-4 py-3 transition hover:border-accent active:scale-[0.98] hover:border-l-sport"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-xs font-semibold tracking-wider text-sport uppercase">
-                      {SPORT_LABEL[pool.sport]}
-                    </span>
-                    <span className="block truncate font-display text-xl font-bold uppercase">{pool.name}</span>
-                    {pool.status === "finished" && <span className="block text-xs font-semibold text-gold">Temporada terminada</span>}
-                  </span>
-                  <span aria-hidden="true" className="text-muted">→</span>
-                </Link>
+                <PoolLink pool={pool} />
               </li>
             ))}
           </ul>
+        )}
+        {finished.length > 0 && (
+          <details className="mt-4 rounded-xl border border-border bg-surface px-4 py-3">
+            <summary className="cursor-pointer text-sm font-medium">Temporadas terminadas ({finished.length})</summary>
+            <ul className="mt-3 space-y-2">
+              {finished.map((pool) => (
+                <li key={pool.id}>
+                  <PoolLink pool={pool} />
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
       </section>
 
       {pools.length > 0 && <PushToggle />}
     </main>
+  );
+}
+
+function PoolLink({ pool }: { pool: { id: string; name: string; sport: Sport } }) {
+  return (
+    <Link
+      href={`/quinielas/${pool.id}`}
+      data-sport={pool.sport}
+      className="flex items-center justify-between gap-3 rounded-xl border border-l-4 border-border border-l-sport bg-surface px-4 py-3 transition hover:border-accent active:scale-[0.98] hover:border-l-sport"
+    >
+      <span className="min-w-0">
+        <span className="block text-xs font-semibold tracking-wider text-sport uppercase">{SPORT_LABEL[pool.sport]}</span>
+        <span className="block truncate font-display text-xl font-bold uppercase">{pool.name}</span>
+      </span>
+      <span aria-hidden="true" className="text-muted">→</span>
+    </Link>
   );
 }
