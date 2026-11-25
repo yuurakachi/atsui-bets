@@ -13,7 +13,7 @@ export default function PrivacyPage() {
         ← Atsui bets
       </Link>
       <h1 className="mt-2 text-2xl font-bold">Política de privacidad</h1>
-      <p className="mt-1 text-sm text-muted">Última actualización: 12 de noviembre de 2026</p>
+      <p className="mt-1 text-sm text-muted">Última actualización: 25 de noviembre de 2026</p>
 
       <div className="mt-6 space-y-6 leading-relaxed">
         <section>
@@ -55,7 +55,7 @@ export default function PrivacyPage() {
             servicio de notificaciones de tu navegador (Google, Apple o Mozilla) le da a ese celular y dos llaves para
             cifrar los avisos. No guardamos tu número, tu ubicación ni nada más del celular. Los avisos son de la
             quiniela: cuándo se abren los pics, si te faltan pics 10 minutos antes de que cierren (también a quien
-            captura tus pics, si autorizaste a alguien) y quién ganó cada jornada. Si las desactivas en Inicio, o
+            captura tus pics, si autorizaste a alguien), quién ganó cada jornada y, al terminar la temporada, quién se lleva el acumulado. Si las desactivas en Inicio, o
             el servicio nos dice que ese celular ya no existe, lo borramos.
           </p>
         </section>

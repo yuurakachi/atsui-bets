@@ -67,8 +67,9 @@ manual; notifications don't replace it.
 | Picks are open | Everyone enrolled in the pool | Once the round shows up on the home screen (the same rule, `shownRounds`); between 22:00 and 9:00 it waits until 9:00. A Sprint weekend's two rounds go in one notice |
 | Picks lock in 10 minutes | Only whoever is missing a pick of what locks, and their delegate (`pick_delegates`) | 10 minutes before each lock time; everything locking at the same time goes in one notice. In F1 a missing position counts |
 | Round winner | Everyone enrolled in the pool | Once the round is scored, automatically or by hand: winners (ties included), points, prize and perfect-round bonuses. A re-score doesn't send it again |
+| Season winners | Everyone enrolled in the pool | Once the pool is marked finished (a season or a liguilla): who takes the 1st, Lucky 7 and Bobby prizes and how much, ties split. Same split as the pool screen (`seasonJackpot`). Sent by the results job, so up to 30 minutes later |
 
-Pools that aren't active yet send nothing, and neither does the NFL for now: the family plays the 2026 season on Yahoo (`MUTED_SPORTS`). Their notices are still marked as handled, so turning them on doesn't send old ones. The rules live in `src/domain/notifications.ts`,
+Pools that aren't active yet send nothing (a finished one still announces its last round and its season winners), and neither does the NFL for now: the family plays the 2026 season on Yahoo (`MUTED_SPORTS`). Their notices are still marked as handled, so turning them on doesn't send old ones. The rules live in `src/domain/notifications.ts`,
 the texts in `src/lib/notifications.ts`, and `src/lib/notify.ts` sends whatever is due by
 reading the database, so it doesn't matter which path created or scored a round.
 
@@ -77,9 +78,9 @@ reading the database, so it doesn't matter which path created or scored a round.
   own; `save_push_subscription` moves a shared phone to whoever turned them on last).
   Addresses the push service reports as gone (404/410) are deleted.
 - `push_sent` keeps one key per notice (`opened:<round>`, `winner:<round>`,
-  `closing:<lock time>`). The job inserts the key before sending and only sends if the
+  `closing:<lock time>`, `season:<pool>`). The job inserts the key before sending and only sends if the
   insert went through, so nothing goes out twice even if two runs overlap; a send that
-  fails isn't retried. Rounds scored before notifications existed were marked as sent.
+  fails isn't retried. Rounds scored and seasons finished before their notice existed were marked as sent.
 - A `pg_cron` job (`push-notifications`) runs every minute, but only calls
   `/api/cron/notify` when something locks within 10 minutes or a round was scored and
   that hasn't been handled yet. "Picks are open" is checked by the results job every 30

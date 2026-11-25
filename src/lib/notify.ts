@@ -6,12 +6,13 @@ import {
   poolNotifies,
   quietHours,
   roundOutcome,
+  seasonJackpot,
   shownRounds,
   type PickSlot,
   type Sport,
 } from "@/domain";
 import { playerName } from "./format";
-import { closingMessage, openedMessage, winnerMessage } from "./notifications";
+import { closingMessage, openedMessage, seasonMessage, winnerMessage } from "./notifications";
 import { sendToPlayers } from "./push";
 import { roundTitle } from "./reminders";
 import type { createServiceClient } from "./supabase/service";
@@ -28,8 +29,8 @@ export interface NotifyReport {
 const HOUR = 60 * 60;
 
 /**
- * Sends the notifications that are due: picks are open, picks lock in 10 minutes, and
- * round winners. It reads the state of the database, so rounds created or scored by hand
+ * Sends the notifications that are due: picks are open, picks lock in 10 minutes, round
+ * winners, and a season's jackpot winners once it's finished. It reads the state of the database, so rounds created or scored by hand
  * and by the automatic jobs are treated the same. Each notice is claimed in push_sent
  * before it's sent, so it never goes out twice. Pools that send nothing (not active yet,
  * or muted like the NFL) have their notices claimed but not sent.
@@ -189,6 +190,40 @@ export async function sendDueNotifications(supabase: Service, now: Date): Promis
       bonusEachCents: outcome.bonusEachCents,
     });
     await send(enrolled(r.pool_id), { ...message, url: `/quinielas/${r.pool_id}/jornadas/${r.id}` }, 24 * HOUR);
+  }
+
+  // 4. A season is over (the pool is marked finished): who takes the jackpot. After the
+  // round winners, so the last round is announced first.
+  const finished = pools.data!.filter((p) => p.status === "finished");
+  const claimedSeasons = await claim(supabase, finished.map((p) => `season:${p.id}`));
+  for (const p of finished.filter((p) => claimedSeasons.has(`season:${p.id}`))) {
+    report.handled.push(`season:${p.id}`);
+    if (!sends(p.id)) continue;
+    const { data: detail, error } = await supabase
+      .from("pools")
+      .select("jackpot_opening_cents, buy_in_cents, rounds(jackpot_cents, round_results(player_id, points, bonus_cents))")
+      .eq("id", p.id)
+      .eq("rounds.status", "completed")
+      .single();
+    if (error) throw new Error(error.message);
+    const { distribution } = seasonJackpot({
+      openingCents: detail.jackpot_opening_cents,
+      buyInCents: detail.buy_in_cents,
+      playerIds: enrolled(p.id),
+      rounds: detail.rounds.map((r) => ({
+        jackpotCents: r.jackpot_cents ?? 0,
+        results: r.round_results.map((x) => ({ playerId: x.player_id, points: x.points, bonusCents: x.bonus_cents })),
+      })),
+    });
+    const message = seasonMessage({
+      poolName: p.name,
+      awards: distribution.awards.map((a) => ({
+        kind: a.kind,
+        names: a.profileIds.map((id) => name.get(id) ?? "?").sort((x, y) => x.localeCompare(y)),
+        cents: a.perPersonCents,
+      })),
+    });
+    await send(enrolled(p.id), { ...message, url: `/quinielas/${p.id}` }, 24 * HOUR);
   }
 
   return report;
